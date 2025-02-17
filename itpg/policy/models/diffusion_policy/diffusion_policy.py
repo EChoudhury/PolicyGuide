@@ -22,6 +22,7 @@ TODO(alexander-soare):
 
 import math
 from typing import Callable
+from pathlib import Path
 
 import einops
 import numpy as np
@@ -32,6 +33,7 @@ from diffusers.schedulers.scheduling_ddim import DDIMScheduler
 from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 from huggingface_hub import PyTorchModelHubMixin
 from torch import Tensor, nn
+import os
 
 from  itpg.policy.models.diffusion_policy.configuration_diffusion import DiffusionConfig
 from itpg.policy.models.diffusion_policy.utils.normalization import Normalize, Unnormalize
@@ -66,6 +68,12 @@ class DiffusionPolicy(nn.Module, PyTorchModelHubMixin):
         if config is None:
             config = DiffusionConfig()
         self.config = config
+
+        # load stats dataset for normalization
+        # TODO: Generate or load dataset at runtime by calling visualize.py code
+        stats_path = Path("/home/choudhue/PolicyGuide/dataset/stats") / "stats.pth"
+        self.stats = self._get_stats(stats_path)
+
         self.normalize_inputs = Normalize(
             config.input_shapes, config.input_normalization_modes, dataset_stats
         )
@@ -114,6 +122,14 @@ class DiffusionPolicy(nn.Module, PyTorchModelHubMixin):
         loss = self.diffusion.compute_loss(batch)
         return {"loss": loss}
 
+    def _get_stats(self, stats_path: str):
+        print(f"Retrieving stats data from {stats_path}...")
+        data_file = os.path.join(stats_path, 'stats.pkl.gzip')
+        loaded_data = torch.load(data_file)
+        print("############## Successfully loaded stats data ##############")
+        print(loaded_data)
+        print("############################################################")
+        return loaded_data
 
 def _make_noise_scheduler(name: str, **kwargs: dict) -> DDPMScheduler | DDIMScheduler:
     """

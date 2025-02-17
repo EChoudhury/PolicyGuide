@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 import sys
 from typing import List, Union
+from torch import save
 
 # This is for using the locally installed repo clone when using slurm
 import calvin_agent
@@ -35,15 +36,6 @@ def train(cfg: DictConfig) -> None:
     seed_everything(cfg.seed, workers=True)  # type: ignore
     
     datamodule = hydra.utils.instantiate(cfg.datamodule, training_repo_root=Path(calvin_agent.__file__).parents[2])
-
-    # Create stats buffer for all datasets when running diffusion policy
-    stats = None
-    if cfg.create_stats:
-        stats = create_stats_buffers(datamodule)
-        # Save stats to disk in the training_repo_root as a pkl file
-        stats_path = Path(cfg.stats_dir) / "stats.pkl"
-        stats_path.parent.mkdir(parents=True, exist_ok=True)
-        stats_path.write_bytes(stats.to_bytes())
 
     chk = get_last_checkpoint(Path.cwd())
 

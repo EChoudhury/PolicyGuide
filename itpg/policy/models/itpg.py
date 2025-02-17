@@ -38,9 +38,6 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         replan_freq: int = 30,
     ):
         super(ITPG, self).__init__()
-        # load stats dataset from disk from config location
-        stats_path = Path(self.stats_dir) / "stats.pkl"
-
 
         # affordance policy
 
@@ -61,9 +58,11 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         self.plan = None
         self.lang_embeddings = None
 
+
     def configure_optimizers(self):
         optimizer = hydra.utils.instantiate(self.optimizer_config, params=self.parameters())
         return optimizer
+
 
     def convert_batch(batch: Dict[str, Dict]) -> Dict[str, torch.Tensor]:
         """
