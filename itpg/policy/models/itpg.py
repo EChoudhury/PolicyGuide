@@ -1,9 +1,9 @@
 import logging
+import os
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 from calvin_agent.models.calvin_base_model import CalvinBaseModel
-from calvin_agent.models.decoders.action_decoder import ActionDecoder
 import hydra
 import numpy as np
 from omegaconf import DictConfig
@@ -11,6 +11,8 @@ import pytorch_lightning as pl
 from pytorch_lightning.utilities import rank_zero_only
 import torch
 import torch.distributions as D
+
+from itpg.policy.models.diffusion_policy.diffusion_policy import DiffusionPolicy
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +44,11 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         # affordance policy
 
         # diffusion policy network
-        self.diffusion_policy = hydra.utils.instantiate(diffusion_policy)
+        # load stats dataset for normalization
+        stats_path = Path("/home/choudhue/PolicyGuide/dataset/calvin_debug_dataset/stats") / "calvin_debug_dataset_stats.pkl"
+        self.stats = self._get_stats(stats_path)
+        # self.diffusion_policy = hydra.utils.instantiate(diffusion_policy)
+        self.diffusion_policy = DiffusionPolicy(diffusion_policy, self.stats)
 
         self.kl_beta = kl_beta
         self.modality_scope = "vis"
@@ -63,6 +69,15 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         optimizer = hydra.utils.instantiate(self.optimizer_config, params=self.parameters())
         return optimizer
 
+
+    def _get_stats(self, stats_path: str):
+        print(f"Retrieving stats data from {stats_path}...")
+        loaded_data = torch.load(stats_path)
+        print("############## Successfully loaded stats data ##############")
+        print(loaded_data)
+        print("############################################################")
+        return loaded_data
+    
 
     def convert_batch(batch: Dict[str, Dict]) -> Dict[str, torch.Tensor]:
         """
