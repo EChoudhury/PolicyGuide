@@ -1,11 +1,7 @@
 defaults:
-  - diffusion_policy: default
   - optimizer: adam
 
-_target_: itpg.policy.models.diffusion_policy.DiffusionPolicy
+_target_: itpg.policy.models.itpg.ITPG
 _recursive_: false
 
-stats_dir: ${defaults.stats_dir}
-
-kl_beta: ${loss.kl_beta}
 replan_freq: 30

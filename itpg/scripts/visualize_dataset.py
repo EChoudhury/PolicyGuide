@@ -52,6 +52,12 @@ def compute_statistics(data_path, data_keys):
 def format_stats(stats):
     formatted_stats = {}
     for key, value in stats.items():
+        if key=="rgb_static":  
+            key = "observation.image"
+        if key=="robot_obs":  
+            key = "observation.state"
+        if key=="actions":  
+            key = "action"
         formatted_stats[key] = {
             "mean": torch.tensor(value["mean"], dtype=torch.float32),
             "std": torch.tensor(value["std"], dtype=torch.float32),
@@ -77,7 +83,7 @@ if __name__ == "__main__":
     parser = ArgumentParser(description="Compute statistics of dataset")
     parser.add_argument("--path", type=str, default="/home/choudhue/PolicyGuide/dataset/calvin_debug_dataset/training", help="Path to dir containing scene_info.npy")
     parser.add_argument("-d", "--data", nargs="*", default=["rgb_static", "rgb_gripper", "robot_obs", "actions"], help="Data to compute statistics for")
-    parser.add_argument("-s", "--save", type=str, default="/home/choudhue/PolicyGuide/dataset/stats/calvin_debug_dataset_stats.pkl", help="Path to save stats buffers")
+    parser.add_argument("-s", "--save", type=str, default="/home/choudhue/PolicyGuide/dataset/calvin_debug_dataset/stats/calvin_debug_dataset_stats.pkl", help="Path to save stats buffers")
     args = parser.parse_args()
 
     if not Path(args.path).is_dir():

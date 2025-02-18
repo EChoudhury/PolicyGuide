@@ -14,8 +14,6 @@ defaults:
 seed: 42
 log_dir: ../
 slurm: false
-create_stats: true
-stats_dir: /home/choudhue/Thesis/dataset/stats
 
 hydra:
   run:

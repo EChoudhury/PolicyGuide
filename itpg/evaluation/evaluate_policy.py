@@ -7,7 +7,7 @@ import sys
 import time
 
 # This is for using the locally installed repo clone when using slurm
-from calvin_agent.models.calvin_base_model import CalvinBaseModel
+from itpg.policy.models.calvin_base_model import CalvinBaseModel
 
 sys.path.insert(0, Path(__file__).absolute().parents[2].as_posix())
 

@@ -97,7 +97,7 @@ class DiffusionConfig:
     """
 
     # Inputs / output structure.
-    n_obs_steps: int = 2
+    n_obs_steps: int = 32
     horizon: int = 16
     n_action_steps: int = 8
 
@@ -125,7 +125,7 @@ class DiffusionConfig:
     # Architecture / modeling.
     # Vision backbone.
     vision_backbone: str = "resnet18"
-    crop_shape: tuple[int, int] | None = (84, 84)
+    crop_shape: tuple[int, int] | None = None #(84, 84)
     crop_is_random: bool = True
     pretrained_backbone_weights: str | None = None
     use_group_norm: bool = True

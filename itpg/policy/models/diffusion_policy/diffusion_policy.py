@@ -35,6 +35,7 @@ from huggingface_hub import PyTorchModelHubMixin
 from torch import Tensor, nn
 import os
 
+import itpg
 from itpg.policy.models.diffusion_policy.configuration_diffusion import DiffusionConfig
 from itpg.policy.models.diffusion_policy.utils.normalization import Normalize, Unnormalize
 from itpg.policy.models.diffusion_policy.utils.utils import (

@@ -1,9 +1,10 @@
 import logging
 import os
 from pathlib import Path
+import pickle
 from typing import Any, Dict, Optional, Tuple
 
-from calvin_agent.models.calvin_base_model import CalvinBaseModel
+from itpg.policy.models.calvin_base_model import CalvinBaseModel
 import hydra
 import numpy as np
 from omegaconf import DictConfig
@@ -13,6 +14,7 @@ import torch
 import torch.distributions as D
 
 from itpg.policy.models.diffusion_policy.diffusion_policy import DiffusionPolicy
+from itpg.policy.models.diffusion_policy.configuration_diffusion import DiffusionConfig
 
 logger = logging.getLogger(__name__)
 
@@ -22,20 +24,11 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
     The lightning module used for training.
 
     Args:
-        perceptual_encoder: DictConfig for perceptual_encoder.
-        plan_proposal: DictConfig for plan_proposal network.
-        plan_recognition: DictConfig for plan_recognition network.
-        language_goal: DictConfig for language_goal encoder.
-        visual_goal: DictConfig for visual_goal encoder.
-        action_decoder: DictConfig for action_decoder.
-        kl_beta: Weight for KL loss term.
         optimizer: DictConfig for optimizer.
     """
 
     def __init__(
         self,
-        diffusion_policy: DictConfig,
-        kl_beta: float,
         optimizer: DictConfig,
         replan_freq: int = 30,
     ):
@@ -48,9 +41,9 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         stats_path = Path("/home/choudhue/PolicyGuide/dataset/calvin_debug_dataset/stats") / "calvin_debug_dataset_stats.pkl"
         self.stats = self._get_stats(stats_path)
         # self.diffusion_policy = hydra.utils.instantiate(diffusion_policy)
-        self.diffusion_policy = DiffusionPolicy(diffusion_policy, self.stats)
+        config = DiffusionConfig()
+        self.diffusion_policy = DiffusionPolicy(config, self.stats)
 
-        self.kl_beta = kl_beta
         self.modality_scope = "vis"
         self.optimizer_config = optimizer
 
@@ -72,14 +65,15 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
 
     def _get_stats(self, stats_path: str):
         print(f"Retrieving stats data from {stats_path}...")
-        loaded_data = torch.load(stats_path)
+        with open(stats_path, 'rb') as pickle_file:
+            loaded_data = pickle.load(pickle_file)
         print("############## Successfully loaded stats data ##############")
         print(loaded_data)
         print("############################################################")
         return loaded_data
     
 
-    def convert_batch(batch: Dict[str, Dict]) -> Dict[str, torch.Tensor]:
+    def _convert_batch(self, batch: Dict[str, Dict]) -> Dict[str, torch.Tensor]:
         """
         Convert the batch dictionary into the desired format.
 
@@ -90,22 +84,28 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
             dict: Converted batch dictionary.
         """
         # Extract dimensions
-        B = len(batch['vis']['idx'])  # Batch size
-        n_obs_steps = batch['vis']['robot_obs'].shape[1]  # Number of observation steps
-        state_dim = batch['vis']['robot_obs'].shape[2]  # State dimension
-        num_cameras = 2  # Number of cameras (rgb_static and rgb_wrist)
+        # print(batch.keys())
+        B = len(batch['idx'])  # Batch size
+        n_obs_steps = batch['robot_obs'].shape[1]  # Number of observation steps
+        state_dim = batch['robot_obs'].shape[2]  # State dimension
+        num_cameras = 1  # Number of cameras (rgb_static and rgb_wrist)
 
         # Assuming same image size for all cameras
-        C, H, W = batch['vis']['rgb_obs']['rgb_static'].shape[2:]  # Channels, height, and width of images
-
+        C, H, W = batch['rgb_obs']['rgb_static'].shape[2:]  # Channels, height, and width of images
+        print(C,H,W)
         # Reshape tensors
+        # converted_batch = {
+        #     "observation.state": batch['robot_obs'].view(B, n_obs_steps, state_dim),
+        #     "observation.images": torch.stack([
+        #         batch['rgb_obs']['rgb_static'],
+        #         batch['rgb_obs']['rgb_wrist']
+        #     ], dim=2).view(B, n_obs_steps, num_cameras, C, H, W),
+        #     "action": batch['actions'].view(B, n_obs_steps, -1)  # Assuming actions have shape (B, n_obs_steps, action_dim)
+        # }
         converted_batch = {
-            "observation.state": batch['vis']['robot_obs'].view(B, n_obs_steps, state_dim),
-            "observation.images": torch.stack([
-                batch['vis']['rgb_obs']['rgb_static'],
-                batch['vis']['rgb_obs']['rgb_wrist']
-            ], dim=2).view(B, n_obs_steps, num_cameras, C, H, W),
-            "action": batch['vis']['actions'].view(B, n_obs_steps, -1)  # Assuming actions have shape (B, n_obs_steps, action_dim)
+            "observation.state": batch['robot_obs'].view(B, n_obs_steps, state_dim),
+            "observation.image": batch['rgb_obs']['rgb_static'].view(B, n_obs_steps, num_cameras, C, H, W),
+            "action": batch['actions'].view(B, n_obs_steps, -1)  # Assuming actions have shape (B, n_obs_steps, action_dim)
         }
 
         return converted_batch
@@ -147,7 +147,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
             print(f"Modality Scope: {self.modality_scope}")
 
             # convert observations
-            converted_obs = self.convert_batch(dataset_batch)
+            converted_obs = self._convert_batch(dataset_batch)
 
             # Run through diffusion policy
             loss = self.diffusion_policy.forward(converted_obs)
@@ -194,7 +194,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         for self.modality_scope, dataset_batch in batch.items():
             
             # convert observations
-            converted_obs = self.convert_batch(dataset_batch)
+            converted_obs = self._convert_batch(dataset_batch)
 
             # Run inference on diffusion policy
             output = self.diffusion_policy.run_inference(converted_obs)
@@ -293,7 +293,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         if self.rollout_step_counter % self.replan_freq == 0:
             # Not using language goal for now
             # convert observations
-            converted_obs = self.convert_batch(obs)
+            converted_obs = self._convert_batch(obs)
 
             # Run inference on diffusion policy
             action = self.diffusion_policy.run_inference(converted_obs)
