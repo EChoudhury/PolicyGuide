@@ -53,7 +53,9 @@ def format_stats(stats):
     formatted_stats = {}
     for key, value in stats.items():
         if key=="rgb_static":  
-            key = "observation.image"
+            key = "observation.image_static"
+        if key=="rgb_gripper":  
+            key = "observation.image_wrist"
         if key=="robot_obs":  
             key = "observation.state"
         if key=="actions":  

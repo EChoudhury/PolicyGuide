@@ -103,7 +103,8 @@ class DiffusionConfig:
 
     input_shapes: dict[str, list[int]] = field(
         default_factory=lambda: {
-            "observation.image": [3, 200, 200],
+            "observation.image_static": [3, 200, 200],
+            # "observation.image_wrist": [3, 84, 84],
             "observation.state": [15],
         }
     )
@@ -116,7 +117,8 @@ class DiffusionConfig:
     # Normalization / Unnormalization
     input_normalization_modes: dict[str, str] = field(
         default_factory=lambda: {
-            "observation.image": "mean_std",
+            "observation.image_static": "mean_std",
+            # "observation.image_wrist": "mean_std",
             "observation.state": "min_max",
         }
     )

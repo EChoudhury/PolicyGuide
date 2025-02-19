@@ -85,6 +85,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         """
         # Extract dimensions
         # print(batch.keys())
+        
         B = len(batch['idx'])  # Batch size
         n_obs_steps = batch['robot_obs'].shape[1]  # Number of observation steps
         state_dim = batch['robot_obs'].shape[2]  # State dimension
@@ -92,7 +93,6 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
 
         # Assuming same image size for all cameras
         C, H, W = batch['rgb_obs']['rgb_static'].shape[2:]  # Channels, height, and width of images
-        print(C,H,W)
         # Reshape tensors
         # converted_batch = {
         #     "observation.state": batch['robot_obs'].view(B, n_obs_steps, state_dim),
@@ -104,9 +104,10 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         # }
         converted_batch = {
             "observation.state": batch['robot_obs'].view(B, n_obs_steps, state_dim),
-            "observation.image": batch['rgb_obs']['rgb_static'].view(B, n_obs_steps, num_cameras, C, H, W),
+            "observation.image_static": batch['rgb_obs']['rgb_static'].view(B, n_obs_steps, C, H, W),
             "action": batch['actions'].view(B, n_obs_steps, -1)  # Assuming actions have shape (B, n_obs_steps, action_dim)
         }
+        print(f"Action shape: {converted_batch['action'].shape}")
 
         return converted_batch
 
@@ -148,7 +149,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
 
             # convert observations
             converted_obs = self._convert_batch(dataset_batch)
-
+            
             # Run through diffusion policy
             loss = self.diffusion_policy.forward(converted_obs)
             
@@ -192,13 +193,10 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         """
         output = {}
         for self.modality_scope, dataset_batch in batch.items():
-            
             # convert observations
             converted_obs = self._convert_batch(dataset_batch)
-
             # Run inference on diffusion policy
             output = self.diffusion_policy.run_inference(converted_obs)
-
         return output
 
     def validation_epoch_end(self, validation_step_outputs):

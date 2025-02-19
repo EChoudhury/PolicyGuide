@@ -142,7 +142,7 @@ class Normalize(nn.Module):
                 assert not torch.isinf(mean).any(), _no_stats_error_str("mean")
                 assert not torch.isinf(std).any(), _no_stats_error_str("std")
                 # TODO: check if this is correct
-                batch[key] = (batch[key] - mean.view(1, 1, 1, 3, 1, 1)) / (std.view(1, 1, 1, 3, 1, 1) + 1e-8)
+                batch[key] = (batch[key] - mean.view(1, 1, 3, 1, 1)) / (std.view(1, 1, 3, 1, 1) + 1e-8)
             elif mode == "min_max":
                 min = buffer["min"]
                 max = buffer["max"]
@@ -207,7 +207,7 @@ class Unnormalize(nn.Module):
                 std = buffer["std"]
                 assert not torch.isinf(mean).any(), _no_stats_error_str("mean")
                 assert not torch.isinf(std).any(), _no_stats_error_str("std")
-                batch[key] = batch[key] * std.view(1, 1, 1, 3, 1, 1) + mean.view(1, 1, 1, 3, 1, 1)
+                batch[key] = batch[key] * std + mean
             elif mode == "min_max":
                 min = buffer["min"]
                 max = buffer["max"]
