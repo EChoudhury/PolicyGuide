@@ -11,8 +11,8 @@ from itpg.policy.models.calvin_base_model import CalvinBaseModel
 
 sys.path.insert(0, Path(__file__).absolute().parents[2].as_posix())
 
-from calvin_agent.evaluation.multistep_sequences import get_sequences
-from calvin_agent.evaluation.utils import (
+from itpg.evaluation.multistep_sequences import get_sequences
+from itpg.evaluation.utils import (
     collect_plan,
     count_success,
     create_tsne,
@@ -22,7 +22,7 @@ from calvin_agent.evaluation.utils import (
     join_vis_lang,
     print_and_save,
 )
-from calvin_agent.utils.utils import get_all_checkpoints, get_checkpoints_for_epochs, get_last_checkpoint
+from itpg.utils.utils import get_all_checkpoints, get_checkpoints_for_epochs, get_last_checkpoint
 import hydra
 import numpy as np
 from omegaconf import OmegaConf
@@ -31,7 +31,7 @@ from termcolor import colored
 import torch
 from tqdm.auto import tqdm
 
-from calvin_env.envs.play_table_env import get_env
+from calvin_env.calvin_env.envs.play_table_env import get_env
 
 logger = logging.getLogger(__name__)
 

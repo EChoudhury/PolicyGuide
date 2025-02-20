@@ -94,19 +94,9 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         B = len(batch['idx'])  # Batch size
         n_obs_steps = batch['robot_obs'].shape[1]  # Number of observation steps
         state_dim = batch['robot_obs'].shape[2]  # State dimension
-        num_cameras = 1  # Number of cameras (rgb_static and rgb_wrist)
 
         # Assuming same image size for all cameras
         C, H, W = batch['rgb_obs']['rgb_static'].shape[2:]  # Channels, height, and width of images
-        # Reshape tensors
-        # converted_batch = {
-        #     "observation.state": batch['robot_obs'].view(B, n_obs_steps, state_dim),
-        #     "observation.images": torch.stack([
-        #         batch['rgb_obs']['rgb_static'],
-        #         batch['rgb_obs']['rgb_wrist']
-        #     ], dim=2).view(B, n_obs_steps, num_cameras, C, H, W),
-        #     "action": batch['actions'].view(B, n_obs_steps, -1)  # Assuming actions have shape (B, n_obs_steps, action_dim)
-        # }
         
         converted_batch = {
             "observation.state": batch['robot_obs'].view(B, n_obs_steps, state_dim),
@@ -120,7 +110,9 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
             action_dim = batch['actions'].shape[-1]
             converted_batch["action"] = batch['actions'].view(B, n_obs_steps, action_dim)  # Assuming actions have shape (B, n_obs_steps, action_dim)
             converted_batch["action"] = converted_batch["action"][:, :self.config.horizon, :]
+
         # print(converted_batch["observation.image_static"].shape, converted_batch["observation.state"].shape, converted_batch["action"].shape)
+        
         return converted_batch
 
 
@@ -212,8 +204,6 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         """
         Call this at the beginning of a new rollout when doing inference.
         """
-        self.plan = None
-        self.latent_goal = None
         self.rollout_step_counter = 0
 
     def step(self, obs, goal):
@@ -231,7 +221,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         if self.rollout_step_counter % self.replan_freq == 0:
             # Not using language goal for now
             # convert observations
-            converted_obs = self._convert_batch(obs)
+            converted_obs = self._convert_batch(obs, train=False)
 
             # Run inference on diffusion policy
             action = self.diffusion_policy.run_inference(converted_obs)
