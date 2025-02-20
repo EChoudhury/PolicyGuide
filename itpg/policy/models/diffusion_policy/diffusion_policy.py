@@ -98,12 +98,10 @@ class DiffusionPolicy(nn.Module, PyTorchModelHubMixin):
 
     @torch.no_grad
     def run_inference(self, observation_batch: dict[str, Tensor], guide: Tensor | None = None, visualizer=None, multi=False) -> Tensor:
-        print(observation_batch["observation.image_static"].shape)
         observation_batch = self.normalize_inputs(observation_batch)
         if guide is not None:
             guide = self.normalize_targets({"action": guide})["action"]
         if len(self.expected_image_keys) > 0:
-            print(observation_batch["observation.image_static"].shape)
             observation_batch["observation.images"] = torch.stack(
                 [observation_batch[k] for k in self.expected_image_keys], dim=-4
             )
@@ -118,7 +116,7 @@ class DiffusionPolicy(nn.Module, PyTorchModelHubMixin):
             batch["observation.images"] = torch.stack([batch[k] for k in self.expected_image_keys], dim=-4)
         batch = self.normalize_targets(batch)
         loss = self.diffusion.compute_loss(batch)
-        return {"loss": loss}
+        return loss
     
 
 def _make_noise_scheduler(name: str, **kwargs: dict) -> DDPMScheduler | DDIMScheduler:
@@ -303,7 +301,7 @@ class DiffusionModel(nn.Module):
 
         # Concatenate features then flatten to (B, global_cond_dim).
         global_cond = torch.cat(global_cond_feats, dim=-1).flatten(start_dim=1)
-        print(f"Global conditioning tensor shape: {global_cond.shape}")
+        # print(f"Global conditioning tensor shape: {global_cond.shape}")
         return global_cond
 
     def generate_actions(self, batch: dict[str, Tensor], guide: Tensor | None = None, visualizer=None, normalizer=None, multi=False) -> Tensor:
@@ -349,7 +347,7 @@ class DiffusionModel(nn.Module):
         }
         """
         # Input validation.
-        assert set(batch).issuperset({"observation.state", "action", "action_is_pad"})
+        assert set(batch).issuperset({"observation.state", "action"})
         assert "observation.images" in batch or "observation.environment_state" in batch
         n_obs_steps = batch["observation.state"].shape[1]
         horizon = batch["action"].shape[1]

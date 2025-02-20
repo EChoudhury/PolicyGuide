@@ -97,7 +97,7 @@ class DiffusionConfig:
     """
 
     # Inputs / output structure.
-    n_obs_steps: int = 32
+    n_obs_steps: int = 2
     horizon: int = 16
     n_action_steps: int = 8
 

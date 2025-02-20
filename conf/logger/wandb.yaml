@@ -1,6 +1,6 @@
 _target_: pytorch_lightning.loggers.WandbLogger
-save_dir: .
-name: play_lmp
+save_dir: /home/choudhue/PolicyGuide/itpg
+name: VanillaDiffusionPolicy
 group: play_lmp
 log_model: false
 project: "multi_play"
