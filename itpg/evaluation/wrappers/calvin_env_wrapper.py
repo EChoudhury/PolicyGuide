@@ -7,8 +7,8 @@ import gym
 import numpy as np
 import torch
 
-from calvin_env.calvin_env.envs.play_table_env import get_env
-from calvin_env.calvin_env.utils.utils import EglDeviceNotFoundError, get_egl_device_id
+from calvin_env.envs.play_table_env import get_env
+from calvin_env.utils.utils import EglDeviceNotFoundError, get_egl_device_id
 
 logger = logging.getLogger(__name__)
 
