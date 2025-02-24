@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import sys
 import time
+from typing import Any, Dict, List, Tuple
 
 # This is for using the locally installed repo clone when using slurm
 from itpg.policy.models.calvin_base_model import CalvinBaseModel
@@ -143,6 +144,52 @@ def evaluate_sequence(env, model, task_checker, initial_state, eval_sequence, va
             return success_counter
     return success_counter
 
+def combine_observations(observations: List[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
+    """
+    Combine an unspecified number of observations for each of their keys.
+
+    Args:
+        observations (list): List of observation dictionaries.
+
+    Returns:
+        dict: Combined observation dictionary.
+    """
+    merged = {}
+
+    for d in observations:
+        for key, value in d.items():
+            # If the value is a tensor (not a nested dictionary)
+            if isinstance(value, torch.Tensor):
+                if key in merged:
+                    merged[key].append(value)  # Append tensor to existing list
+                else:
+                    merged[key] = [value]  # Initialize with a list
+            else:  # If the value is a dictionary (nested structure)
+                if key not in merged:
+                    merged[key] = {}
+
+                for subkey, tensor in value.items():
+                    if subkey in merged[key]:
+                        merged[key][subkey].append(tensor)
+                    else:
+                        merged[key][subkey] = [tensor]
+
+    # Concatenate tensors along the second dimension (dim=1)
+    for key, value in merged.items():
+        if isinstance(value, dict):  # If it's a nested dictionary
+            for subkey in value:
+                if len(value[subkey]) > 1:
+                    merged[key][subkey] = torch.cat(value[subkey], dim=1)  # Concatenating along dim=1
+                else:
+                    merged[key][subkey] = value[subkey][0]  # If only one tensor, return it as is
+        else:  # If it's a direct tensor mapping
+            if len(value) > 1:
+                merged[key] = torch.cat(value, dim=1)
+            else:
+                merged[key] = value[0]
+
+    return merged
+    
 
 def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug):
     """
@@ -156,17 +203,29 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug):
     lang_annotation = val_annotations[subtask][0]
     model.reset()
     start_info = env.get_info()
-
+    obs_history = None
     for step in range(EP_LEN):
-        action = model.step(obs, lang_annotation)
-        obs, _, _, current_info = env.step(action)
-        if debug:
-            img = env.render(mode="rgb_array")
-            join_vis_lang(img, lang_annotation)
-            # time.sleep(0.1)
-        if step == 0:
-            # for tsne plot, only if available
-            collect_plan(model, plans, subtask)
+        if obs_history is None:
+            # If there is no past observation, use the current observation twice
+            obs_history = [obs, obs]
+                        
+        combined_obs = combine_observations(obs_history)
+        action = model.step(combined_obs, lang_annotation)
+
+        for i in range(len(action)):
+            obs, _, _, current_info = env.step(action[i])
+            print(obs)
+            print(obs.keys())
+            obs_history = obs_history[-1:]
+            obs_history.append(obs)        
+
+            if debug:
+                img = env.render(mode="rgb_array")
+                join_vis_lang(img, lang_annotation)
+                # time.sleep(0.1)
+            if step == 0:
+                # for tsne plot, only if available
+                collect_plan(model, plans, subtask)
 
         # check if current step solves a task
         current_task_info = task_oracle.get_task_info_for_set(start_info, current_info, {subtask})

@@ -107,6 +107,25 @@ class Rollout(Callback):
             eval(id_selection_strategy), min_window_size=min_window_size, max_window_size=max_window_size
         )
 
+    def combine_observations(self, observations: List[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
+        """
+        Combine an unspecified number of observations for each of their keys.
+
+        Args:
+            observations (list): List of observation dictionaries.
+
+        Returns:
+            dict: Combined observation dictionary.
+        """
+        if not observations:
+            raise ValueError("The observations list is empty")
+
+        combined_obs = {}
+        for key in observations[0].keys():
+            combined_obs[key] = torch.cat([obs[key] for obs in observations], dim=0)
+        return combined_obs
+
+
     def on_validation_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
         """Called when the validation loop begins."""
         if self.env is None:
@@ -337,7 +356,8 @@ class Rollout(Callback):
                             # If there is no past observation, use the current observation twice
                             obs_history = [obs, obs]
                         
-                        action = pl_module.step(obs_history, goal)  # type: ignore
+                        combined_obs = self.combine_observations(obs_history)
+                        action = pl_module.step(combined_obs, goal)  # type: ignore
 
                         for i in range(len(action)):
                             obs, _, _, current_info = self.env.step(action[i])

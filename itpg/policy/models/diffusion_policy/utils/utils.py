@@ -15,6 +15,7 @@
 # limitations under the License.
 import torch
 from torch import nn
+from typing import Dict
 
 
 def populate_queues(queues, batch):
@@ -47,3 +48,44 @@ def get_dtype_from_parameters(module: nn.Module) -> torch.dtype:
     Note: assumes that all parameters have the same dtype.
     """
     return next(iter(module.parameters())).dtype
+
+
+def convert_batch(self, batch: Dict[str, Dict], train=True, infer=False) -> Dict[str, torch.Tensor]:
+        """
+        Convert the batch dictionary into the desired format.
+
+        Args:
+            batch (dict): Input batch dictionary.
+
+        Returns:
+            dict: Converted batch dictionary.
+        """
+        if infer:
+            B = 1
+            torch.concat(batch)
+        else:
+            B = len(batch['idx'])  # Batch size
+            
+        n_obs_steps = batch['robot_obs'].shape[1]  # Number of observation steps
+        state_dim = batch['robot_obs'].shape[2]  # State dimension
+
+        # Assuming same image size for all cameras
+        C, H, W = batch['rgb_obs']['rgb_static'].shape[2:]  # Channels, height, and width of images
+        
+        converted_batch = {
+            "observation.state": batch['robot_obs'].view(B, n_obs_steps, state_dim),
+            "observation.image_static": batch['rgb_obs']['rgb_static'].view(B, n_obs_steps, C, H, W),
+        }
+
+        converted_batch["observation.image_static"] = converted_batch["observation.image_static"][:,:self.config.n_obs_steps,...]
+        converted_batch["observation.state"] = converted_batch["observation.state"][:,:self.config.n_obs_steps,:]
+
+        if train:
+            action_dim = batch['actions'].shape[-1]
+            converted_batch["action"] = batch['actions'].view(B, n_obs_steps, action_dim)  # Assuming actions have shape (B, n_obs_steps, action_dim)
+            converted_batch["action"] = converted_batch["action"][:, :self.config.horizon, :]
+
+        # if infer:
+        #     print(converted_batch["observation.image_static"].shape, converted_batch["observation.state"].shape, converted_batch["action"].shape)
+        
+        return converted_batch
