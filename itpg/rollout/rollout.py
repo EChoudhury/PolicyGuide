@@ -144,7 +144,14 @@ class Rollout(Callback):
         if pl_module.current_epoch >= self.skip_epochs and (pl_module.current_epoch + 1) % self.rollout_freq == 0:
             # in first validation epoch collect groundtruth task information of current validation batch
             if self.task_to_id_dict is None:
+                outputs = {}
                 outputs["task_ids"], outputs["batch_seq_ids"] = self.get_task_info_of_batch(batch)
+                # task_ids, batch_seq_ids = self.get_task_info_of_batch(batch)
+                # print(f"task_ids: {task_ids}, type: {type(task_ids)}, len: {len(task_ids) if isinstance(task_ids, list) else 'N/A'}")
+                # print(f"batch_seq_ids: {batch_seq_ids}, type: {type(batch_seq_ids)}")
+                # # Convert lists to tensors before assignment
+                # outputs["task_ids"] = task_ids
+                # outputs["batch_seq_ids"] = torch.tensor(batch_seq_ids, device="cuda") 
             else:
                 # do rollout for batch
                 outputs["rollout_task_counter"] = self.env_rollouts(batch, pl_module)
@@ -320,24 +327,39 @@ class Rollout(Callback):
                         self.rollout_video.new_video(tag=get_video_tag(groundtruth_task, mod))
                     pl_module.reset()  # type: ignore
                     success = False
+                    
+                    # Initialize the observation history buffer
+                    obs_history = None
+
                     for step in range(self.ep_len):
-                        action = pl_module.step(obs, goal)  # type: ignore
-                        obs, _, _, current_info = self.env.step(action)
-                        if record_video:
-                            # update video
-                            self.rollout_video.update(obs["rgb_obs"]["rgb_static"])
-                        # check if current step solves a task
-                        current_task_info = self.tasks.get_task_info_for_set(start_info, current_info, groundtruth_task)
-                        # check if a task was achieved and if that task is a subset of the original tasks
-                        # we do not just want to solve any task, we want to solve the task that was proposed
-                        if len(current_task_info) > 0:
-                            for task in current_task_info:
-                                task_id = self.tasks.task_to_id[task]
-                                # count successful task rollouts
-                                rollout_task_counter[task_id] += 1
-                            # skip current sequence if task was achieved
-                            success = True
-                            break
+
+                        if obs_history is None:
+                            # If there is no past observation, use the current observation twice
+                            obs_history = [obs, obs]
+                        
+                        action = pl_module.step(obs_history, goal)  # type: ignore
+
+                        for i in range(len(action)):
+                            obs, _, _, current_info = self.env.step(action[i])
+
+                            obs_history = obs_history[-1:]
+                            obs_history.append(obs)
+                            
+                            if record_video:
+                                # update video
+                                self.rollout_video.update(obs["rgb_obs"]["rgb_static"])
+                            # check if current step solves a task
+                            current_task_info = self.tasks.get_task_info_for_set(start_info, current_info, groundtruth_task)
+                            # check if a task was achieved and if that task is a subset of the original tasks
+                            # we do not just want to solve any task, we want to solve the task that was proposed
+                            if len(current_task_info) > 0:
+                                for task in current_task_info:
+                                    task_id = self.tasks.task_to_id[task]
+                                    # count successful task rollouts
+                                    rollout_task_counter[task_id] += 1
+                                # skip current sequence if task was achieved
+                                success = True
+                                break
                     if record_video:
                         if self.add_goal_thumbnail:
                             if mod == "lang":

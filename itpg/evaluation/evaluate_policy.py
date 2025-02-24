@@ -31,7 +31,7 @@ from termcolor import colored
 import torch
 from tqdm.auto import tqdm
 
-from calvin_env.calvin_env.envs.play_table_env import get_env
+from calvin_env.envs.play_table_env import get_env
 
 logger = logging.getLogger(__name__)
 

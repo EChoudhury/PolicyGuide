@@ -78,7 +78,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         return loaded_data
     
 
-    def _convert_batch(self, batch: Dict[str, Dict], train=True) -> Dict[str, torch.Tensor]:
+    def _convert_batch(self, batch: Dict[str, Dict], train=True, infer=False) -> Dict[str, torch.Tensor]:
         """
         Convert the batch dictionary into the desired format.
 
@@ -88,10 +88,11 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         Returns:
             dict: Converted batch dictionary.
         """
-        # Extract dimensions
-        # print(batch.keys())
-        
-        B = len(batch['idx'])  # Batch size
+        if infer:
+            B = 1
+        else:
+            B = len(batch['idx'])  # Batch size
+            
         n_obs_steps = batch['robot_obs'].shape[1]  # Number of observation steps
         state_dim = batch['robot_obs'].shape[2]  # State dimension
 
@@ -111,10 +112,11 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
             converted_batch["action"] = batch['actions'].view(B, n_obs_steps, action_dim)  # Assuming actions have shape (B, n_obs_steps, action_dim)
             converted_batch["action"] = converted_batch["action"][:, :self.config.horizon, :]
 
-        # print(converted_batch["observation.image_static"].shape, converted_batch["observation.state"].shape, converted_batch["action"].shape)
+        # if infer:
+        #     print(converted_batch["observation.image_static"].shape, converted_batch["observation.state"].shape, converted_batch["action"].shape)
         
         return converted_batch
-
+    
 
     def training_step(self, batch: Dict[str, Dict], batch_idx: int) -> torch.Tensor:  # type: ignore
         """
@@ -221,7 +223,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         if self.rollout_step_counter % self.replan_freq == 0:
             # Not using language goal for now
             # convert observations
-            converted_obs = self._convert_batch(obs, train=False)
+            converted_obs = self._convert_batch(obs, train=False, infer=True)
 
             # Run inference on diffusion policy
             action = self.diffusion_policy.run_inference(converted_obs)

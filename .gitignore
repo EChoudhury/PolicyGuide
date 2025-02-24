@@ -165,7 +165,7 @@ __pycache__/
 
 # Data
 dataset/
-itpg/wandb/
+results/
 
 # Simulator
 calvin_env/
