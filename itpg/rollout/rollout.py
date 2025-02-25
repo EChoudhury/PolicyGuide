@@ -106,7 +106,8 @@ class Rollout(Callback):
         self.pick_task_ids = partial(
             eval(id_selection_strategy), min_window_size=min_window_size, max_window_size=max_window_size
         )
-    def combine_observations(observations: List[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
+        
+    def combine_observations(self, observations: List[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
         """
         Combine an unspecified number of observations for each of their keys.
 
