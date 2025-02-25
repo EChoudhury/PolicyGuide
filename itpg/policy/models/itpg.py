@@ -112,8 +112,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
             converted_batch["action"] = batch['actions'].view(B, n_obs_steps, action_dim)  # Assuming actions have shape (B, n_obs_steps, action_dim)
             converted_batch["action"] = converted_batch["action"][:, :self.config.horizon, :]
 
-        # if infer:
-        #     print(converted_batch["observation.image_static"].shape, converted_batch["observation.state"].shape, converted_batch["action"].shape)
+        # print(converted_batch["observation.image_static"].shape, converted_batch["observation.state"].shape)
         
         return converted_batch
     
@@ -220,13 +219,13 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
             Predicted action.
         """
         # replan every replan_freq steps (default 30 i.e every second)
-        if self.rollout_step_counter % self.replan_freq == 0:
+        # if self.rollout_step_counter % self.replan_freq == 0:
             # Not using language goal for now
             # convert observations
-            converted_obs = self._convert_batch(obs, train=False, infer=True)
+        converted_obs = self._convert_batch(obs, train=False, infer=True)
 
-            # Run inference on diffusion policy
-            action = self.diffusion_policy.run_inference(converted_obs)
+        # Run inference on diffusion policy
+        action = self.diffusion_policy.run_inference(converted_obs)
 
         self.rollout_step_counter += 1
         return action

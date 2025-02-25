@@ -150,7 +150,6 @@ class DiffusionModel(nn.Module):
             self._use_env_state = True
             global_cond_dim += config.input_shapes["observation.environment_state"][0]
 
-        print(f"unet in {global_cond_dim}")
         self.unet = DiffusionConditionalUnet1d(config, global_cond_dim=global_cond_dim * config.n_obs_steps)
 
         self.noise_scheduler = _make_noise_scheduler(
@@ -318,7 +317,7 @@ class DiffusionModel(nn.Module):
         batch_size, n_obs_steps = batch["observation.state"].shape[:2]
         assert n_obs_steps == self.config.n_obs_steps, f"{n_obs_steps=} {self.config.n_obs_steps=}"
 
-        print(batch["observation.images"].shape)
+        # print(f"Observation Image Shape: {batch['observation.images'].shape}")
         # Encode image features and concatenate them all together along with the state vector.
         global_cond = self._prepare_global_conditioning(batch)  # (B, global_cond_dim)
 
@@ -635,7 +634,6 @@ class DiffusionConditionalUnet1d(nn.Module):
 
         # The FiLM conditioning dimension.
         cond_dim = config.diffusion_step_embed_dim + global_cond_dim
-        print(f'cond_dim: {cond_dim}')
         # In channels / out channels for each downsampling block in the Unet's encoder. For the decoder, we
         # just reverse these.
         in_out = [(config.output_shapes["action"][0], config.down_dims[0])] + list(

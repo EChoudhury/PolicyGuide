@@ -4,4 +4,4 @@ defaults:
 _target_: itpg.policy.models.itpg.ITPG
 _recursive_: false
 
-replan_freq: 30
+replan_freq: 8

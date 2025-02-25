@@ -144,6 +144,52 @@ def evaluate_sequence(env, model, task_checker, initial_state, eval_sequence, va
             return success_counter
     return success_counter
 
+# def combine_observations(observations: List[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
+#     """
+#     Combine an unspecified number of observations for each of their keys.
+
+#     Args:
+#         observations (list): List of observation dictionaries.
+
+#     Returns:
+#         dict: Combined observation dictionary.
+#     """
+#     merged = {}
+
+#     for d in observations:
+#         for key, value in d.items():
+#             # If the value is a tensor (not a nested dictionary)
+#             if isinstance(value, torch.Tensor):
+#                 if key in merged:
+#                     merged[key].append(value)  # Append tensor to existing list
+#                 else:
+#                     merged[key] = [value]  # Initialize with a list
+#             else:  # If the value is a dictionary (nested structure)
+#                 if key not in merged:
+#                     merged[key] = {}
+
+#                 for subkey, tensor in value.items():
+#                     if subkey in merged[key]:
+#                         merged[key][subkey].append(tensor)
+#                     else:
+#                         merged[key][subkey] = [tensor]
+
+#     # Concatenate tensors along the second dimension (dim=1)
+#     for key, value in merged.items():
+#         if isinstance(value, dict):  # If it's a nested dictionary
+#             for subkey in value:
+#                 if len(value[subkey]) > 1:
+#                     merged[key][subkey] = torch.cat(value[subkey], dim=0)  # Concatenating along dim=1
+#                 else:
+#                     merged[key][subkey] = value[subkey][0]  # If only one tensor, return it as is
+#         else:  # If it's a direct tensor mapping
+#             if len(value) > 1:
+#                 merged[key] = torch.cat(value, dim=0)
+#             else:
+#                 merged[key] = value[0]
+
+#     return merged
+
 def combine_observations(observations: List[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
     """
     Combine an unspecified number of observations for each of their keys.
@@ -155,41 +201,16 @@ def combine_observations(observations: List[Dict[str, torch.Tensor]]) -> Dict[st
         dict: Combined observation dictionary.
     """
     merged = {}
+    merged['rgb_obs'] = {}
 
-    for d in observations:
-        for key, value in d.items():
-            # If the value is a tensor (not a nested dictionary)
-            if isinstance(value, torch.Tensor):
-                if key in merged:
-                    merged[key].append(value)  # Append tensor to existing list
-                else:
-                    merged[key] = [value]  # Initialize with a list
-            else:  # If the value is a dictionary (nested structure)
-                if key not in merged:
-                    merged[key] = {}
+    merged['robot_obs'] = torch.cat([obs['robot_obs'] for obs in observations], dim=1)
+    merged['rgb_obs']['rgb_static'] = torch.cat([obs['rgb_obs']['rgb_static'] for obs in observations], dim=1)
 
-                for subkey, tensor in value.items():
-                    if subkey in merged[key]:
-                        merged[key][subkey].append(tensor)
-                    else:
-                        merged[key][subkey] = [tensor]
-
-    # Concatenate tensors along the second dimension (dim=1)
-    for key, value in merged.items():
-        if isinstance(value, dict):  # If it's a nested dictionary
-            for subkey in value:
-                if len(value[subkey]) > 1:
-                    merged[key][subkey] = torch.cat(value[subkey], dim=1)  # Concatenating along dim=1
-                else:
-                    merged[key][subkey] = value[subkey][0]  # If only one tensor, return it as is
-        else:  # If it's a direct tensor mapping
-            if len(value) > 1:
-                merged[key] = torch.cat(value, dim=1)
-            else:
-                merged[key] = value[0]
+    # print(f"Robot_obs shape: {merged['robot_obs'].shape}")
+    # print(f"Image Shape {merged['rgb_obs']['rgb_static'].shape}")
 
     return merged
-    
+
 
 def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug):
     """
@@ -211,11 +232,10 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug):
                         
         combined_obs = combine_observations(obs_history)
         action = model.step(combined_obs, lang_annotation)
-
-        for i in range(len(action)):
-            obs, _, _, current_info = env.step(action[i])
-            print(obs)
-            print(obs.keys())
+        for i in range(action.shape[1]):
+            obs, _, _, current_info = env.step(action[:,i,...])
+            # print(obs)
+            # print(obs.keys())
             obs_history = obs_history[-1:]
             obs_history.append(obs)        
 

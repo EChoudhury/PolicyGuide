@@ -106,8 +106,7 @@ class Rollout(Callback):
         self.pick_task_ids = partial(
             eval(id_selection_strategy), min_window_size=min_window_size, max_window_size=max_window_size
         )
-
-    def combine_observations(self, observations: List[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
+    def combine_observations(observations: List[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
         """
         Combine an unspecified number of observations for each of their keys.
 
@@ -117,13 +116,11 @@ class Rollout(Callback):
         Returns:
             dict: Combined observation dictionary.
         """
-        if not observations:
-            raise ValueError("The observations list is empty")
-
-        combined_obs = {}
-        for key in observations[0].keys():
-            combined_obs[key] = torch.cat([obs[key] for obs in observations], dim=0)
-        return combined_obs
+        merged = {}
+        merged['rgb_obs'] = {}
+        merged['robot_obs'] = torch.cat([obs['robot_obs'] for obs in observations], dim=1)
+        merged['rgb_obs']['rgb_static'] = torch.cat([obs['rgb_obs']['rgb_static'] for obs in observations], dim=1)
+        return merged
 
 
     def on_validation_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
@@ -164,13 +161,7 @@ class Rollout(Callback):
             # in first validation epoch collect groundtruth task information of current validation batch
             if self.task_to_id_dict is None:
                 outputs = {}
-                outputs["task_ids"], outputs["batch_seq_ids"] = self.get_task_info_of_batch(batch)
-                # task_ids, batch_seq_ids = self.get_task_info_of_batch(batch)
-                # print(f"task_ids: {task_ids}, type: {type(task_ids)}, len: {len(task_ids) if isinstance(task_ids, list) else 'N/A'}")
-                # print(f"batch_seq_ids: {batch_seq_ids}, type: {type(batch_seq_ids)}")
-                # # Convert lists to tensors before assignment
-                # outputs["task_ids"] = task_ids
-                # outputs["batch_seq_ids"] = torch.tensor(batch_seq_ids, device="cuda") 
+                outputs["task_ids"], outputs["batch_seq_ids"] = self.get_task_info_of_batch(batch) 
             else:
                 # do rollout for batch
                 outputs["rollout_task_counter"] = self.env_rollouts(batch, pl_module)
@@ -359,8 +350,8 @@ class Rollout(Callback):
                         combined_obs = self.combine_observations(obs_history)
                         action = pl_module.step(combined_obs, goal)  # type: ignore
 
-                        for i in range(len(action)):
-                            obs, _, _, current_info = self.env.step(action[i])
+                        for i in range(action.shape[1]):
+                            obs, _, _, current_info = self.env.step(action[:,i])
 
                             obs_history = obs_history[-1:]
                             obs_history.append(obs)
