@@ -160,8 +160,8 @@ class Rollout(Callback):
         batch = batch["vis"]
         if pl_module.current_epoch >= self.skip_epochs and (pl_module.current_epoch + 1) % self.rollout_freq == 0:
             # in first validation epoch collect groundtruth task information of current validation batch
+            outputs = {}
             if self.task_to_id_dict is None:
-                outputs = {}
                 outputs["task_ids"], outputs["batch_seq_ids"] = self.get_task_info_of_batch(batch) 
             else:
                 # do rollout for batch

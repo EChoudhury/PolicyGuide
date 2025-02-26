@@ -193,10 +193,11 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         # Run inference on diffusion policy
         loss = self.diffusion_policy.forward(converted_obs)
 
+        self.log("valid/valid_loss", loss, on_step=False, on_epoch=True)
+
         return loss
 
     def validation_epoch_end(self, validation_step_outputs):
-        print("Validation epoch end")
         for i, step in enumerate(validation_step_outputs):
             self.log(f"val_loss/step_{i}", step)
 

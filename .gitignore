@@ -166,6 +166,7 @@ __pycache__/
 # Data
 dataset/
 results/
+wandb/
 
 # Simulator
 calvin_env/

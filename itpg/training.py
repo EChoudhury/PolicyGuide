@@ -13,7 +13,7 @@ import itpg
 # from pytorch_lightning.strategies import DDPStrategy
 
 sys.path.insert(0, Path(__file__).absolute().parents[1].as_posix())
-# import itpg.policy.models.itpg as models_m
+import itpg.policy.models.itpg as models_m
 from itpg.utils.utils import get_git_commit_hash, get_last_checkpoint, print_system_env_info
 from itpg.policy.models.diffusion_policy.utils.normalization import create_stats_buffers
 import hydra
@@ -41,10 +41,10 @@ def train(cfg: DictConfig) -> None:
     chk = get_last_checkpoint(Path.cwd())
 
     # Load Model
-    # if chk is not None:
-    #     model = getattr(models_m, cfg.model["_target_"].split(".")[-1]).load_from_checkpoint(chk.as_posix())
-    # else:
-    model = hydra.utils.instantiate(cfg.model)
+    if chk is not None:
+        model = getattr(models_m, cfg.model["_target_"].split(".")[-1]).load_from_checkpoint(chk.as_posix())
+    else:
+        model = hydra.utils.instantiate(cfg.model)
 
     log_rank_0(f"Training with the following config:\n{OmegaConf.to_yaml(cfg)}")
     log_rank_0("Repo commit hash: {}".format(get_git_commit_hash(Path(hydra.utils.to_absolute_path(__file__)))))

@@ -1,6 +1,6 @@
 defaults:
   - rollout: default
   # - rollout_lh: default
-  - checkpoint: save_all
+  - checkpoint: val_loss
   # - tsne_plot: default
   # - kl_schedule: constant
