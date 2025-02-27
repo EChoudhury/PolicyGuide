@@ -6,11 +6,11 @@ _recursive_: false
 env_cfg:
   _target_: itpg.evaluation.wrappers.calvin_env_wrapper.CalvinEnvWrapper
 skip_epochs: 1
-rollout_freq: 3
+rollout_freq: 50
 video: true
 num_rollouts_per_task: 10
 check_percentage_of_batch: 1  # which percentage of sequences do we want to check for possible tasks
-ep_len: 120
+ep_len: 15
 empty_cache: true
 log_video_to_file: false
 save_dir: ./videos

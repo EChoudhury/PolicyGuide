@@ -167,6 +167,7 @@ __pycache__/
 dataset/
 results/
 wandb/
+nohup.out
 
 # Simulator
 calvin_env/
