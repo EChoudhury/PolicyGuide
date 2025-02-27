@@ -5,3 +5,4 @@ _target_: itpg.policy.models.itpg.ITPG
 _recursive_: false
 
 replan_freq: 8
+stats_path: /home/choudhue/PolicyGuide/dataset/calvin_debug_dataset/stats/dataset.pkl

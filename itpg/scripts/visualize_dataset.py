@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import tqdm
 import matplotlib.pyplot as plt
+import os
 
 from pathlib import Path
 import numpy as np
@@ -83,21 +84,26 @@ def plot_histogram(stats):
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="Compute statistics of dataset")
-    parser.add_argument("--path", type=str, default="/home/choudhue/PolicyGuide/dataset/calvin_debug_dataset/training", help="Path to dir containing scene_info.npy")
+    parser.add_argument("--path", type=str, default="/home/choudhue/PolicyGuide/dataset/calvin_debug_dataset", help="Path to dir containing scene_info.npy")
     parser.add_argument("-d", "--data", nargs="*", default=["rgb_static", "rgb_gripper", "robot_obs", "actions"], help="Data to compute statistics for")
-    parser.add_argument("-s", "--save", type=str, default="/home/choudhue/PolicyGuide/dataset/calvin_debug_dataset/stats/calvin_debug_dataset_stats.pkl", help="Path to save stats buffers")
     args = parser.parse_args()
 
     if not Path(args.path).is_dir():
         print(f"Path {args.path} is either not a directory, or does not exist.")
         exit()
 
-    stats = compute_statistics(args.path, args.data)
+    train_path = os.path.join(args.path, 'training') 
+    stats = compute_statistics(train_path, args.data)
     formatted_stats = format_stats(stats)
-
     print(formatted_stats)
-    with open(args.save, 'wb') as f:
+
+    #TODO: Incorporate validation data?
+    
+    data_file = os.path.join(args.path, 'stats') 
+    os.makedirs(data_file, exist_ok=True) 
+    data_file = os.path.join(data_file, 'dataset.pkl') 
+    with open(data_file, 'wb') as f:
         pickle.dump(formatted_stats, f)
-    print(f"Stats saved to {args.save}")
+    print(f"Stats saved to {data_file}")
 
     # plot_histogram(formatted_stats)

@@ -31,6 +31,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         self,
         optimizer: DictConfig,
         replan_freq: int = 30,
+        stats_path: str = None,
     ):
         super(ITPG, self).__init__()
 
@@ -38,7 +39,6 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
 
         # diffusion policy network
         # load stats dataset for normalization
-        stats_path = Path("/home/choudhue/PolicyGuide/dataset/calvin_debug_dataset/stats") / "calvin_debug_dataset_stats.pkl"
         self.stats = self._get_stats(stats_path)
         # self.diffusion_policy = hydra.utils.instantiate(diffusion_policy)
         self.config = DiffusionConfig()

@@ -9,9 +9,15 @@ cd PolicyGuide
 
 2. Create conda environment and install required packages
 ```bash
+# Create conda env
 conda create -y -n policyguide python=3.10
 conda activate policyguide
+
+# Install requirements 
 pip install -r requirements.txt 
+
+# Install Pyhash (deprecation issue with pip)
+conda install conda-forge::pyhash
 ```
 
 3. Install CALVIN environment
@@ -29,6 +35,16 @@ Download your choice of dataset (D|ABC|ABCD|debug) assuming you installed Policy
 cd ~/PolicyGuide/dataset
 sh download_data.sh D | ABC | ABCD | debug
 ```
+
+## Generate Statistics
+Diffusion Policy normalization requires dataset statistics to be generated on the entire body of data. If you wish to use normalization, generate the files:
+```bash
+python -m itpg.scripts.visualize_dataset --path /path/to/dataset
+```
+Then update or override the stats_path variable in the default configuration file for the model, found at `/conf/model/default.yaml`, to point to your new stats file. 
+
+Also, update the statistics.yaml files in the dataset directories to point to `itpg.utils.transforms....`
+
 ## Training
 Launch default training.
 ```bash

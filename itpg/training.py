@@ -9,8 +9,8 @@ import itpg
 
 # This is for using the locally installed repo clone when using slurm
 # import calvin_agent
-# from lightning_lite.accelerators.cuda import num_cuda_devices
-# from pytorch_lightning.strategies import DDPStrategy
+from lightning_lite.accelerators.cuda import num_cuda_devices
+from pytorch_lightning.strategies import DDPStrategy
 
 sys.path.insert(0, Path(__file__).absolute().parents[1].as_posix())
 import itpg.policy.models.itpg as models_m
@@ -61,11 +61,11 @@ def train(cfg: DictConfig) -> None:
     }
 
     # # Configure multi-GPU training
-    # if is_multi_gpu_training(trainer_args["devices"]):
-    #     # increase default timeout for loading data into shared memory
-    #     trainer_args["strategy"] = DDPStrategy(find_unused_parameters=False, timeout=timedelta(seconds=3600))
-    #     if not cfg.slurm:
-    #         modify_argv_hydra()
+    if is_multi_gpu_training(trainer_args["devices"]):
+        # increase default timeout for loading data into shared memory
+        trainer_args["strategy"] = DDPStrategy(find_unused_parameters=False, timeout=timedelta(seconds=3600))
+        if not cfg.slurm:
+            modify_argv_hydra()
 
     trainer = Trainer(**trainer_args)
 
@@ -136,28 +136,28 @@ def modify_argv_hydra() -> None:
         sys.argv.append(o)  # type: ignore
 
 
-# def is_multi_gpu_training(devices: Union[int, str, ListConfig]) -> bool:
-#     """
-#     Check if training on multiple GPUs.
-#     See https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html#devices
+def is_multi_gpu_training(devices: Union[int, str, ListConfig]) -> bool:
+    """
+    Check if training on multiple GPUs.
+    See https://pytorch-lightning.readthedocs.io/en/stable/common/trainer.html#devices
 
-#      Args:
-#         devices: int, str or ListConfig specifying devices
+     Args:
+        devices: int, str or ListConfig specifying devices
 
-#     Returns:
-#         True if multi-gpu training (ddp), False otherwise.
-#     """
-#     num_gpu_available = num_cuda_devices()
-#     if isinstance(devices, int):
-#         return devices > 1 or (devices == -1 and num_gpu_available > 1)
-#     elif isinstance(devices, str) and devices == "auto":
-#         return num_gpu_available > 1
-#     elif isinstance(devices, str):
-#         return len(devices) > 1
-#     elif isinstance(devices, ListConfig):
-#         return len(devices) > 1
-#     else:
-#         raise ValueError
+    Returns:
+        True if multi-gpu training (ddp), False otherwise.
+    """
+    num_gpu_available = num_cuda_devices()
+    if isinstance(devices, int):
+        return devices > 1 or (devices == -1 and num_gpu_available > 1)
+    elif isinstance(devices, str) and devices == "auto":
+        return num_gpu_available > 1
+    elif isinstance(devices, str):
+        return len(devices) > 1
+    elif isinstance(devices, ListConfig):
+        return len(devices) > 1
+    else:
+        raise ValueError
 
 
 @rank_zero_only
