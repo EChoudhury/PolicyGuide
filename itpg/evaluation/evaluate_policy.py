@@ -36,7 +36,7 @@ from calvin_env.envs.play_table_env import get_env
 
 logger = logging.getLogger(__name__)
 
-EP_LEN = 360
+EP_LEN = 45  # 8 actions step
 NUM_SEQUENCES = 1000
 
 

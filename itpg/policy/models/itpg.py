@@ -31,7 +31,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         self,
         optimizer: DictConfig,
         replan_freq: int = 30,
-        stats_path: str = None,
+        stats_path: str = "/home/choudhue/PolicyGuide/dataset/calvin_debug_dataset/stats/dataset.pkl",
     ):
         super(ITPG, self).__init__()
 

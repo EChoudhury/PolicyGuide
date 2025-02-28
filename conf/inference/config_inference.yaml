@@ -3,8 +3,9 @@ load_checkpoint: ???
 seed: 42
 log_dir: /tmp
 visualize: True
-ep_len: 120
+ep_len: 15
 replan_freq: 30
+stats_path: /home/choudhue/PolicyGuide/dataset/calvin_debug_dataset/stats/dataset.pkl
 processes: 1
 
 hydra:
