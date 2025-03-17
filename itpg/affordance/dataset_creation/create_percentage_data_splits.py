@@ -2,7 +2,7 @@ import argparse
 import json
 import os
 
-from hulc2.utils.utils import get_abspath, split_by_percentage
+from itpg.utils.utils import get_abspath, split_by_percentage
 
 
 def main(args):

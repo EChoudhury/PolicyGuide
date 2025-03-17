@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 
-from hulc2.affordance.models.core.clip import build_model, load_clip, tokenize
-from hulc2.affordance.models.language_encoders.base_lang_encoder import LangEncoder
+from itpg.affordance.models.core.clip import build_model, load_clip, tokenize
+from itpg.affordance.models.language_encoders.base_lang_encoder import LangEncoder
 
 
 class CLIPLang(LangEncoder):

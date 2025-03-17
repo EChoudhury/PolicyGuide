@@ -1,5 +1,5 @@
 # Paths to where episodes_split.json is stored for each dataset
 # Relative to the main hulc2 directory
 data_lst:
-  - dataset/calvin_debug_dataset/calvin_debug_dataset/training
-  - dataset/calvin_debug_dataset/calvin_debug_dataset/validation
+  - /home/choudhue/PolicyGuide/dataset/calvin_debug_dataset/training
+  - /home/choudhue/PolicyGuide/dataset/calvin_debug_dataset/validation

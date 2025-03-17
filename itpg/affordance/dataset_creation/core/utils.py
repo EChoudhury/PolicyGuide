@@ -12,8 +12,8 @@ from omegaconf import OmegaConf
 from omegaconf.dictconfig import DictConfig
 import tqdm
 
-from hulc2.affordance.dataset_creation.core.real_cameras import CamProjections
-from hulc2.utils.utils import get_abspath
+from itpg.affordance.dataset_creation.core.real_cameras import CamProjections
+from itpg.utils.utils import get_abspath
 
 logger = logging.getLogger(__name__)
 

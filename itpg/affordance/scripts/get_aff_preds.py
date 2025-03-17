@@ -12,10 +12,10 @@ import numpy as np
 from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
 
-from hulc2.affordance.dataset_creation.core.utils import instantiate_env
-from hulc2.evaluation.utils import add_title
-from hulc2.utils.tensor_utils import torch_to_numpy
-from hulc2.utils.utils import get_abspath, get_aff_model
+from itpg.affordance.dataset_creation.core.utils import instantiate_env
+from itpg.evaluation.utils import add_title
+from itpg.utils.tensor_utils import torch_to_numpy
+from itpg.utils.utils import get_abspath, get_aff_model
 
 
 def get_camera(cfg):

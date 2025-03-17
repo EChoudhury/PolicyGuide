@@ -4,7 +4,7 @@ import os
 
 import hydra
 
-from hulc2.utils.utils import get_abspath
+from itpg.utils.utils import get_abspath
 
 
 def main(json_file):

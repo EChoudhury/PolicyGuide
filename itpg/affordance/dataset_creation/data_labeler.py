@@ -8,17 +8,17 @@ import hydra
 import numpy as np
 import pybullet as p
 
-from hulc2.affordance.base_detector import BaseDetector
-from hulc2.affordance.dataset_creation.core.data_reader import DataReader
-from hulc2.affordance.dataset_creation.core.utils import (
+from itpg.affordance.base_detector import BaseDetector
+from itpg.affordance.dataset_creation.core.data_reader import DataReader
+from itpg.affordance.dataset_creation.core.utils import (
     create_data_ep_split,
     create_json_file,
     instantiate_env,
     save_dict_data,
 )
-import hulc2.affordance.utils.flowlib as flowlib
-from hulc2.utils.img_utils import get_px_after_crop_resize, resize_center
-from hulc2.utils.utils import get_abspath
+import itpg.affordance.utils.flowlib as flowlib
+from itpg.utils.img_utils import get_px_after_crop_resize, resize_center
+from itpg.utils.utils import get_abspath
 
 log = logging.getLogger(__name__)
 

@@ -22,7 +22,7 @@ model:
       object_center_kernel_radius: 16
 
 dataset:
-  _target_: hulc2.affordance.datasets.mask_label.MaskLabelLabelDataLang
+  _target_: itpg.affordance.datasets.mask_label.MaskLabelLabelDataLang
   transforms: ${aff_detection.streams.transforms}
   radius:
     static: 16

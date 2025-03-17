@@ -168,6 +168,8 @@ dataset/
 results/
 wandb/
 nohup.out
+hydra_outputs/
+wandb/
 
 # Simulator
 calvin_env/

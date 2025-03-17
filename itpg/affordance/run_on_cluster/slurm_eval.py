@@ -6,7 +6,7 @@ import subprocess
 
 import numpy as np
 
-from hulc2.utils.utils import get_all_checkpoints
+from itpg.utils.utils import get_all_checkpoints
 
 default_log_dir = os.getcwd()
 

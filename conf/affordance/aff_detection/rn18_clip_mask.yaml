@@ -4,7 +4,7 @@
 name: rn18_clip_mask
 
 model:
-  _target_: hulc2.affordance.mask_aff_lang_detector.MaskAffLangDetector
+  _target_: itpg.affordance.mask_aff_lang_detector.MaskAffLangDetector
   _recursive_: False
   cfg:
     attn_stream_fusion_type: 'add'

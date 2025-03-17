@@ -10,7 +10,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import DataLoader
 
-from hulc2.utils.utils import get_abspath
+from itpg.utils.utils import get_abspath
 
 
 def print_cfg(cfg):

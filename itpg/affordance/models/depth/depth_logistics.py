@@ -5,9 +5,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
 
-from hulc2.affordance.models.core import fusion
-from hulc2.affordance.models.core.clip import build_model, load_clip, tokenize
-from hulc2.utils.tensor_utils import calc_cnn_out_size
+from itpg.affordance.models.core import fusion
+from itpg.affordance.models.core.clip import build_model, load_clip, tokenize
+from itpg.utils.tensor_utils import calc_cnn_out_size
 
 
 class DepthEstimationLogistics(nn.Module):

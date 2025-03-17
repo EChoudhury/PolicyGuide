@@ -2,11 +2,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from hulc2.affordance.models.core import fusion
-from hulc2.affordance.models.core.resnet import ConvBlock, IdentityBlock
-from hulc2.affordance.models.core.unet import Up
-from hulc2.affordance.models.visual_lang_encoders.base_lingunet import BaseLingunet
-from hulc2.utils.tensor_utils import calc_cnn_out_size
+from itpg.affordance.models.core import fusion
+from itpg.affordance.models.core.resnet import ConvBlock, IdentityBlock
+from itpg.affordance.models.core.unet import Up
+from itpg.affordance.models.visual_lang_encoders.base_lingunet import BaseLingunet
+from itpg.utils.tensor_utils import calc_cnn_out_size
 
 
 class LangFusionBlock(nn.Module):

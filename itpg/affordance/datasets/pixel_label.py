@@ -9,10 +9,10 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-from hulc2.affordance.datasets.transforms import NormalizeInverse, NormalizeVector, NormalizeVectorInverse
-from hulc2.affordance.utils.data_utils import split_by_percentage
-from hulc2.utils.img_utils import add_img_text, get_transforms, resize_pixel
-from hulc2.utils.utils import get_abspath
+from itpg.affordance.datasets.transforms import NormalizeInverse, NormalizeVector, NormalizeVectorInverse
+from itpg.affordance.utils.data_utils import split_by_percentage
+from itpg.utils.img_utils import add_img_text, get_transforms, resize_pixel
+from itpg.utils.utils import get_abspath
 
 
 class PixeLabelDataLang(Dataset):

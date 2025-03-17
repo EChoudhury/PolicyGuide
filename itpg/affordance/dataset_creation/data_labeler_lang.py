@@ -6,10 +6,10 @@ import hydra
 import numpy as np
 import pybullet as p
 
-from hulc2.affordance.dataset_creation.core.utils import create_data_ep_split, create_json_file
-from hulc2.affordance.dataset_creation.data_labeler import DataLabeler
-from hulc2.affordance.dataset_creation.find_norm_values import add_norm_values
-from hulc2.utils.img_utils import add_img_text, resize_center
+from itpg.affordance.dataset_creation.core.utils import create_data_ep_split, create_json_file
+from itpg.affordance.dataset_creation.data_labeler import DataLabeler
+from itpg.affordance.dataset_creation.find_norm_values import add_norm_values
+from itpg.utils.img_utils import add_img_text, resize_center
 
 log = logging.getLogger(__name__)
 

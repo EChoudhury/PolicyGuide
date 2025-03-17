@@ -4,10 +4,10 @@ import torch.nn.functional as F
 import torchvision.models as models
 from transformers import DistilBertModel, DistilBertTokenizer
 
-from hulc2.affordance.models.core import fusion
-from hulc2.affordance.models.core.resnet import ConvBlock, IdentityBlock
-from hulc2.affordance.models.core.unet import Up
-from hulc2.affordance.models.visual_lang_encoders.base_lingunet import BaseLingunet
+from itpg.affordance.models.core import fusion
+from itpg.affordance.models.core.resnet import ConvBlock, IdentityBlock
+from itpg.affordance.models.core.unet import Up
+from itpg.affordance.models.visual_lang_encoders.base_lingunet import BaseLingunet
 
 
 class RN50LingUNet(BaseLingunet):

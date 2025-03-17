@@ -6,7 +6,7 @@ import torch.nn.functional as F
 import torchvision
 import torchvision.transforms as T
 
-from hulc2.utils.img_utils import pixel_after_pad, resize_pixel
+from itpg.utils.img_utils import pixel_after_pad, resize_pixel
 
 
 class ScaleImageTensor(object):

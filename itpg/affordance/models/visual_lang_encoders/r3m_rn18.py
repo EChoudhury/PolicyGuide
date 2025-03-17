@@ -1,9 +1,9 @@
 import torch
 import torch.nn as nn
 
-from hulc2.affordance.models.core import fusion
-from hulc2.affordance.models.core.unet_decoder import UnetLangFusionDecoder
-from hulc2.affordance.models.visual_lang_encoders.base_lingunet import BaseLingunet
+from itpg.affordance.models.core import fusion
+from itpg.affordance.models.core.unet_decoder import UnetLangFusionDecoder
+from itpg.affordance.models.visual_lang_encoders.base_lingunet import BaseLingunet
 from r3m import load_r3m
 
 

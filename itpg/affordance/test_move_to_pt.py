@@ -1,7 +1,7 @@
 import hydra
 import torch
 
-from hulc2.env_wrappers.play_aff_lmp_wrapper import PlayLMPWrapper
+from itpg.env_wrappers.play_aff_lmp_wrapper import PlayLMPWrapper
 
 
 @hydra.main(config_path="../../conf", config_name="cfg_high_level")

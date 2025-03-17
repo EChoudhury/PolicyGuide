@@ -4,9 +4,9 @@ import os
 import numpy as np
 import tqdm
 
-from hulc2.affordance.dataset_creation.core.utils import check_file, get_data
-from hulc2.affordance.utils.data_utils import depth_img_from_uint16, quat_to_euler
-from hulc2.utils.utils import get_abspath
+from itpg.affordance.dataset_creation.core.utils import check_file, get_data
+from itpg.affordance.utils.data_utils import depth_img_from_uint16, quat_to_euler
+from itpg.utils.utils import get_abspath
 
 log = logging.getLogger(__name__)
 

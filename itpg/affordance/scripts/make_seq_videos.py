@@ -8,7 +8,7 @@ from cv2 import rectangle
 import numpy as np
 import tqdm
 
-from hulc2.evaluation.utils import add_title
+from itpg.evaluation.utils import add_title
 
 
 def make_video(im_lst, fps=60, filename="v"):

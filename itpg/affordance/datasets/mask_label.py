@@ -9,10 +9,10 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-from hulc2.affordance.datasets.transforms import NormalizeInverse
-from hulc2.affordance.utils.utils import split_by_percentage
-import hulc2.utils.flowlib as flowlib
-from hulc2.utils.utils import add_img_text, get_abspath, get_transforms, overlay_flow, overlay_mask, resize_pixel
+from itpg.affordance.datasets.transforms import NormalizeInverse
+from itpg.affordance.utils.utils import split_by_percentage
+import itpg.utils.flowlib as flowlib
+from itpg.utils.utils import add_img_text, get_abspath, get_transforms, overlay_flow, overlay_mask, resize_pixel
 
 
 class MaskLabelLabelDataLang(Dataset):
@@ -195,7 +195,7 @@ def main(cfg):
     data = MaskLabelLabelDataLang(split="training", log=None, **cfg.aff_detection.dataset)
     loader = DataLoader(data, num_workers=1, batch_size=1, pin_memory=True)
     print("val minibatches {}".format(len(loader)))
-    from hulc2.affordance.hough_voting import hough_voting as hv
+    from itpg.affordance.hough_voting import hough_voting as hv
 
     hv = hv.HoughVoting(**cfg.aff_detection.model.cfg.hough_voting)
 

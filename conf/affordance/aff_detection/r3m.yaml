@@ -1,7 +1,7 @@
 # R3M Resnet 18 with respective decoder channels
 # SBERT as sentence encoder
 # Single pixel prediction
-_target_: hulc2.affordance.pixel_aff_lang_detector.PixelAffLangDetector
+_target_: itpg.affordance.pixel_aff_lang_detector.PixelAffLangDetector
 _recursive_: False
 name: r3m_rn18_sbert_pixel
 img_size: 224

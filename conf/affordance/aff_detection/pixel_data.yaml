@@ -12,5 +12,5 @@ wandb_saver:
     save_last: True
 
 dataset:
-  _target_: hulc2.affordance.datasets.pixel_label.PixeLabelDataLang
+  _target_: itpg.affordance.datasets.pixel_label.PixeLabelDataLang
   transforms: ${aff_detection.streams.transforms}

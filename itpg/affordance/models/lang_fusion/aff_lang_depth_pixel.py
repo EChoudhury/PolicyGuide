@@ -3,8 +3,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import hulc2.models as models
-from hulc2.utils.tensor_utils import unravel_idx
+import itpg.policy.models as models
+from itpg.utils.tensor_utils import unravel_idx
 
 
 class AffDepthLangFusionPixel(nn.Module):

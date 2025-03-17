@@ -4,9 +4,9 @@ from pytorch_lightning import LightningModule
 import torch
 import torch.nn.functional as F
 
-from hulc2.affordance.datasets.transforms import NormalizeVectorInverse
-from hulc2.affordance.models.language_encoders.clip_lang_encoder import CLIPLang
-import hulc2.models as models
+from itpg.affordance.datasets.transforms import NormalizeVectorInverse
+from itpg.affordance.models.language_encoders.clip_lang_encoder import CLIPLang
+import itpg.models as models
 
 
 class DepthModule(LightningModule):

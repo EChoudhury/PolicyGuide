@@ -1,7 +1,7 @@
 # Unet Resnet 18 with respective decoder channels
 # BERT as sentence encoder
 # Single pixel prediction
-_target_: hulc2.affordance.pixel_aff_lang_detector.PixelAffLangDetector
+_target_: itpg.affordance.pixel_aff_lang_detector.PixelAffLangDetector
 _recursive_: False
 name: rn50_bert_pixel
 img_size: 224

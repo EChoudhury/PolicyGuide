@@ -46,7 +46,7 @@ class SBertLang(nn.Module):
         sentences_sorted = [sentences[idx] for idx in length_sorted_idx]
 
         features = self.model.tokenize(sentences_sorted)
-        features = self.batch_to_device(features, self.model._target_device)
+        features = self.batch_to_device(features, self.model.device)
 
         with torch.set_grad_enabled(not self.freeze_backbone):
             out_features = self.model.forward(features)

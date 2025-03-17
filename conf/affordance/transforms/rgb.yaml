@@ -1,11 +1,11 @@
 training:
   - _target_: torchvision.transforms.Resize
     size: ${aff_detection.img_size}
-  - _target_: hulc2.affordance.datasets.transforms.ScaleImageTensor  # Scale 0-255 to 0-1
+  - _target_: itpg.affordance.datasets.transforms.ScaleImageTensor  # Scale 0-255 to 0-1
   - _target_: torchvision.transforms.Normalize
     mean: [0.5,]
     std: [0.5,]
-  - _target_: hulc2.affordance.datasets.transforms.AddGaussianNoise
+  - _target_: itpg.affordance.datasets.transforms.AddGaussianNoise
     mean: [0.0]
     std: [0.005]
     clip: [-1, 1]
@@ -13,7 +13,7 @@ training:
 validation:
   - _target_: torchvision.transforms.Resize
     size: ${aff_detection.img_size}
-  - _target_: hulc2.affordance.datasets.transforms.ScaleImageTensor
+  - _target_: itpg.affordance.datasets.transforms.ScaleImageTensor
   - _target_: torchvision.transforms.Normalize
     mean: [0.5,]
     std: [0.5,]

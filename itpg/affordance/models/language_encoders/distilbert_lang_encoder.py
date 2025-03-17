@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from transformers import DistilBertConfig, DistilBertModel, DistilBertTokenizer
 
-from hulc2.affordance.models.language_encoders.base_lang_encoder import LangEncoder
+from itpg.affordance.models.language_encoders.base_lang_encoder import LangEncoder
 
 
 class DistilBERTLang(LangEncoder):

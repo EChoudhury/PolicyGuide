@@ -1,4 +1,4 @@
-_target_: hulc2.affordance.pixel_aff_lang_detector.PixelAffLangDetector
+_target_: itpg.affordance.pixel_aff_lang_detector.PixelAffLangDetector
 _recursive_: False
 name: rn50_clip_pixel
 img_size: 224

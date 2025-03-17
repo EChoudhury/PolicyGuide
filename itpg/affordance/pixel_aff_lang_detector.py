@@ -8,10 +8,10 @@ from pytorch_lightning import LightningModule
 import torch
 import torch.nn as nn
 
-from hulc2.affordance.models.lang_fusion.aff_lang_depth_pixel import AffDepthLangFusionPixel
-from hulc2.affordance.utils.losses import cross_entropy_with_logits
-from hulc2.utils.img_utils import add_img_text, blend_imgs, get_transforms, resize_pixel
-from hulc2.utils.tensor_utils import tt, unravel_idx
+from itpg.affordance.models.lang_fusion.aff_lang_depth_pixel import AffDepthLangFusionPixel
+from itpg.affordance.utils.losses import cross_entropy_with_logits
+from itpg.utils.img_utils import add_img_text, blend_imgs, get_transforms, resize_pixel
+from itpg.utils.tensor_utils import tt, unravel_idx
 
 
 class PixelAffLangDetector(LightningModule):

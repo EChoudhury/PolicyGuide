@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from hulc2.affordance.models.lang_fusion.one_stream_attention_lang_fusion_pixel import AttentionLangFusionPixel
+from itpg.affordance.models.lang_fusion.one_stream_attention_lang_fusion_pixel import AttentionLangFusionPixel
 
 
 class AttentionLangFusionMask(AttentionLangFusionPixel):

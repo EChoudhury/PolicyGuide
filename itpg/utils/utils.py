@@ -165,6 +165,17 @@ def add_text(img, lang_text):
             lineType=cv2.LINE_AA,
         )
 
+def get_abspath(path_str):
+    path_str = os.path.expanduser(path_str)
+    if not os.path.isabs(path_str):
+        hydra_cfg = hydra.utils.HydraConfig().cfg
+        if hydra_cfg is not None:
+            cwd = hydra.utils.get_original_cwd()
+        else:
+            cwd = os.getcwd()
+        path_str = os.path.join(cwd, path_str)
+        path_str = os.path.abspath(path_str)
+    return path_str
 
 def format_sftp_path(path):
     """

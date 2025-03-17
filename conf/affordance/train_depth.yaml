@@ -34,7 +34,7 @@ aff_detection:
 
 dataset:
   _recursive_: False
-  _target_: hulc2.affordance.datasets.pixel_label.PixeLabelDataLang
+  _target_: itpg.affordance.datasets.pixel_label.PixeLabelDataLang
   transforms: ${transforms}
   radius:
     static: 16

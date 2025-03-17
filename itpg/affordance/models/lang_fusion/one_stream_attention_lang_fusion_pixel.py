@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import hulc2.models as models
+import itpg.models as models
 
 
 class AttentionLangFusionPixel(nn.Module):

@@ -5,8 +5,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
 
-from hulc2.affordance.datasets.transforms import NormalizeVectorInverse
-from hulc2.affordance.models.language_encoders.clip_lang_encoder import CLIPLang
+from itpg.affordance.datasets.transforms import NormalizeVectorInverse
+from itpg.affordance.models.language_encoders.clip_lang_encoder import CLIPLang
 
 
 class DepthEstimationGaussian(nn.Module):

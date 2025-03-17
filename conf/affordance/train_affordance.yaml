@@ -23,7 +23,7 @@ trainer:
   num_sanity_val_steps: 1
   precision: 16
 
-dataset_name: calvin_lang_MoCEndPt
+dataset_name: calvin_debug_dataset
 aff_detection:
   depth_dist: gaussian # logistic / gaussian
   normalize_depth: True
