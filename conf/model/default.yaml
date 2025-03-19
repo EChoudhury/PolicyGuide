@@ -5,4 +5,8 @@ _target_: itpg.policy.models.itpg.ITPG
 _recursive_: false
 
 replan_freq: 8
-stats_path: /home/choudhue/PolicyGuide/dataset/calvin_debug_dataset/stats/dataset.pkl
+stats_path: /home/choudhue/PolicyGuide/dataset/unprocessed/calvin_debug_dataset/stats/dataset.pkl
+
+affordance_checkpoint:
+  train_folder: /home/choudhue/PolicyGuide/hydra_outputs/affordance_model/2025-03-17/16-03-18
+  model_name: val_err.ckpt

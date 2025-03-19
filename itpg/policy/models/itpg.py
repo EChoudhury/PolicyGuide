@@ -15,6 +15,7 @@ import torch.distributions as D
 
 from itpg.policy.models.diffusion_policy.diffusion_policy import DiffusionPolicy
 from itpg.policy.models.diffusion_policy.configuration_diffusion import DiffusionConfig
+from itpg.utils.utils import get_aff_model
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
     def __init__(
         self,
         optimizer: DictConfig,
+        affordance_checkpoint: dict,
         replan_freq: int = 30,
         stats_path: str = "/home/choudhue/PolicyGuide/dataset/calvin_debug_dataset/stats/dataset.pkl",
     ):
@@ -43,6 +45,11 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         # self.diffusion_policy = hydra.utils.instantiate(diffusion_policy)
         self.config = DiffusionConfig()
         self.diffusion_policy = DiffusionPolicy(self.config, self.stats)
+
+        # affordance policy network
+        print(affordance_checkpoint)
+        self.affordance_policy, _ = get_aff_model(**affordance_checkpoint)
+        self.affordance_policy = self.affordance_policy.cuda()
 
         self.modality_scope = "vis"
         self.optimizer_config = optimizer
@@ -225,8 +232,13 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
             # convert observations
         converted_obs = self._convert_batch(obs, train=False, infer=True)
 
+        # Use affordance model to get the guide
+        # affordance_obs = {"img": converted_obs["observation.image_static"], "lang_goal": goal}
+        # guide = self.affordance_policy.predict(affordance_obs, info=goal)
+        # print(guide)
+
         # Run inference on diffusion policy
-        action = self.diffusion_policy.run_inference(converted_obs)
+        action = self.diffusion_policy.run_inference(converted_obs) #, guide=guide)
 
         self.rollout_step_counter += 1
         return action

@@ -44,6 +44,7 @@ def train(cfg: DictConfig) -> None:
     if chk is not None:
         model = getattr(models_m, cfg.model["_target_"].split(".")[-1]).load_from_checkpoint(chk.as_posix())
     else:
+        print(cfg)
         model = hydra.utils.instantiate(cfg.model)
 
     log_rank_0(f"Training with the following config:\n{OmegaConf.to_yaml(cfg)}")
