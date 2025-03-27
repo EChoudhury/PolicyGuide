@@ -2,6 +2,7 @@ import logging
 import os
 from pathlib import Path
 import pickle
+import cv2
 from typing import Any, Dict, Optional, Tuple
 
 from itpg.policy.models.calvin_base_model import CalvinBaseModel
@@ -32,8 +33,8 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         self,
         optimizer: DictConfig,
         affordance_checkpoint: dict,
-        replan_freq: int = 30,
-        stats_path: str = "/home/choudhue/PolicyGuide/dataset/calvin_debug_dataset/stats/dataset.pkl",
+        replan_freq: int,
+        stats_path: str,
     ):
         super(ITPG, self).__init__()
 
@@ -233,9 +234,20 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         converted_obs = self._convert_batch(obs, train=False, infer=True)
 
         # Use affordance model to get the guide
-        # affordance_obs = {"img": converted_obs["observation.image_static"], "lang_goal": goal}
-        # guide = self.affordance_policy.predict(affordance_obs, info=goal)
-        # print(guide)
+        print(converted_obs["observation.image_static"].shape)
+        frame = converted_obs["observation.image_static"][:,-1,...].detach().cpu().numpy()
+        frame = frame.squeeze()
+        print(frame.shape)
+        frame = (frame * 255.0).astype("uint8")
+        frame = np.transpose(frame, (1, 2, 0))
+        frame = cv2.resize(frame, ([224, 224]))
+        if frame.shape[-1] == 1:
+            frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
+        print(f"image: {frame.shape}")
+        print(f"goal: {goal}")
+        affordance_obs = {"img": frame, "lang_goal": goal}
+        guide = self.affordance_policy.predict(affordance_obs)
+        print(guide)
 
         # Run inference on diffusion policy
         action = self.diffusion_policy.run_inference(converted_obs) #, guide=guide)

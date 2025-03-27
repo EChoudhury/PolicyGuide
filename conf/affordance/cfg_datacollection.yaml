@@ -28,7 +28,7 @@ output_cfg:
   multiclass: False
 
 # For collecting dataset with playdata
-dataset_name: calvin_debug_dataset
+dataset_name: calvin_d_dataset
 play_data_dir: ${dataset_name}
 
 #Output directory where dataset will be stored

@@ -49,6 +49,7 @@ def get_epoch(checkpoint):
 def make_env(dataset_path):
     val_folder = Path(dataset_path) / "validation"
     env = get_env(val_folder, show_gui=False)
+    print(env)
 
     # insert your own env wrapper
     # env = Wrapper(env)

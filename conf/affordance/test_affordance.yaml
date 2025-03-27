@@ -12,7 +12,7 @@ checkpoint:
   train_folder: ~/logs/hulc2/aff_model/2022-07-02/17-01-30_aff_model
   model_name: val_err.ckpt
 
-dataset_name: calvin_lang_MoCEndPt
+dataset_name: calvin_d_dataset
 aff_detection:
   dataset:
     _recursive_: False

@@ -44,7 +44,7 @@ class R3M(BaseLingunet):
 
     def calc_img_enc_size(self):
         test_tensor = torch.zeros(self.input_shape).permute(2, 0, 1)
-        test_tensor = test_tensor.unsqueeze(0).to("cuda")
+        test_tensor = test_tensor.unsqueeze(0).to(self.device)
         shape = self.r3m_resnet18(test_tensor)[0].shape[1:]
         return shape
 

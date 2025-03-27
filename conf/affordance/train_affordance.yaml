@@ -21,7 +21,7 @@ trainer:
   max_epochs: 30
   check_val_every_n_epoch: 1
   num_sanity_val_steps: 1
-  precision: 16
+  precision: 32
 
 dataset_name: calvin_debug_dataset
 aff_detection:

@@ -65,6 +65,7 @@ def collect_plan(model, plans, subtask):
 
 def join_vis_lang(img, lang_text):
     """Takes as input an image and a language instruction and visualizes them with cv2"""
+    img = img['rgb_static']
     img = img[:, :, ::-1].copy()
     img = cv2.resize(img, (500, 500))
     add_text(img, lang_text)
