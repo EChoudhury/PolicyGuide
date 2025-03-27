@@ -8,7 +8,7 @@ from typing import Any, Dict, Optional, Tuple
 from itpg.policy.models.calvin_base_model import CalvinBaseModel
 import hydra
 import numpy as np
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 import pytorch_lightning as pl
 from pytorch_lightning.utilities import rank_zero_only
 import torch
@@ -16,10 +16,11 @@ import torch.distributions as D
 
 from itpg.policy.models.diffusion_policy.diffusion_policy import DiffusionPolicy
 from itpg.policy.models.diffusion_policy.configuration_diffusion import DiffusionConfig
-from itpg.utils.utils import get_aff_model
+from itpg.utils.utils import get_aff_model, get_abspath
+
+from itpg.affordance.dataset_creation.core.utils import instantiate_test_env
 
 logger = logging.getLogger(__name__)
-
 
 class ITPG(pl.LightningModule, CalvinBaseModel):
     """
@@ -49,6 +50,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
 
         # affordance policy network
         print(affordance_checkpoint)
+        self.camera = self._get_camera("/home/choudhue/PolicyGuide/hydra_outputs/datacollection/2025-03-24_16-05-27")
         self.affordance_policy, _ = get_aff_model(**affordance_checkpoint)
         self.affordance_policy = self.affordance_policy.cuda()
 
@@ -85,6 +87,14 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         print("############################################################")
         return loaded_data
     
+
+    def _get_camera(self, path):
+        play_data_hydra_cfg = path + "/.hydra"
+        play_data_hydra_cfg = get_abspath(play_data_hydra_cfg)
+        play_data_cfg = OmegaConf.load(play_data_hydra_cfg + "/config.yaml")
+        static_cam, _ = instantiate_test_env(play_data_cfg, "simulation")
+        return static_cam
+
 
     def _convert_batch(self, batch: Dict[str, Dict], train=True, infer=False) -> Dict[str, torch.Tensor]:
         """
@@ -227,33 +237,34 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         Returns:
             Predicted action.
         """
+        
+        converted_obs = self._convert_batch(obs, train=False, infer=True)
+
         # replan every replan_freq steps (default 30 i.e every second)
+        # padded_guide = None
         # if self.rollout_step_counter % self.replan_freq == 0:
             # Not using language goal for now
             # convert observations
-        converted_obs = self._convert_batch(obs, train=False, infer=True)
-
-        # Use affordance model to get the guide
-        print(converted_obs["observation.image_static"].shape)
+            # Use affordance model to get the guide
         frame = converted_obs["observation.image_static"][:,-1,...].detach().cpu().numpy()
         frame = frame.squeeze()
-        print(frame.shape)
         frame = (frame * 255.0).astype("uint8")
         frame = np.transpose(frame, (1, 2, 0))
         frame = cv2.resize(frame, ([224, 224]))
         if frame.shape[-1] == 1:
             frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
-        print(f"image: {frame.shape}")
-        print(f"goal: {goal}")
         affordance_obs = {"img": frame, "lang_goal": goal}
-        guide = self.affordance_policy.predict(affordance_obs)
-        print(guide)
+        afford_pred = self.affordance_policy.predict(affordance_obs)
+        guide = self.camera.deproject_single_depth(afford_pred["pixel"], afford_pred["depth"])
+        padded_guide = np.concat((guide, np.zeros(4)))
+        padded_guide = torch.tensor(padded_guide).cuda()
+        padded_guide = torch.unsqueeze(padded_guide, 0)
 
         # Run inference on diffusion policy
-        action = self.diffusion_policy.run_inference(converted_obs) #, guide=guide)
+        action = self.diffusion_policy.run_inference(converted_obs, guide=padded_guide)
 
         self.rollout_step_counter += 1
-        return action
+        return action, padded_guide
 
     def load_lang_embeddings(self, embeddings_path):
         """

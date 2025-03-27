@@ -56,7 +56,7 @@ class DiffusionPolicy(nn.Module, PyTorchModelHubMixin):
         self,
         config: DiffusionConfig | None = None,
         dataset_stats: dict[str, dict[str, Tensor]] | None = None,
-        alignment_strategy: str = 'post-hoc',
+        alignment_strategy: str = 'stochastic-sampling',
     ):
         """
         Args:
@@ -236,7 +236,7 @@ class DiffusionModel(nn.Module):
                     if self.alignment_strategy == 'guided-diffusion':
                         guide_ratio = 20 
                     elif self.alignment_strategy == 'stochastic-sampling':
-                        guide_ratio = 30 
+                        guide_ratio = 60 
                     else:
                         guide_ratio = 0
                     model_output = model_output + guide_ratio * grad
@@ -266,8 +266,7 @@ class DiffusionModel(nn.Module):
         # print('noisy action shape:', naction.shape, 'guide shape:', guide.shape)
         # print('mean and std of naction', naction.mean(), naction.std())
         # print('mean and std of guide', guide.mean(), guide.std())
-
-        assert naction.shape[2] == 2 and guide.shape[1] == 2
+        assert naction.shape[2] == 7 and guide.shape[1] == 7
         indices = torch.linspace(0, guide.shape[0]-1, naction.shape[1], dtype=int)
         guide = torch.unsqueeze(guide[indices], dim=0) # (1, pred_horizon, action_dim)
         assert guide.shape == (1, naction.shape[1], naction.shape[2])
