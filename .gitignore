@@ -170,6 +170,7 @@ wandb/
 nohup.out
 hydra_outputs/
 wandb/
+*.out
 
 # Simulator
 calvin_env/
