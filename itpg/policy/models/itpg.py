@@ -256,7 +256,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         affordance_obs = {"img": frame, "lang_goal": goal}
         afford_pred = self.affordance_policy.predict(affordance_obs)
         guide = self.camera.deproject_single_depth(afford_pred["pixel"], afford_pred["depth"])
-        padded_guide = np.concat((guide, np.zeros(4)))
+        padded_guide = np.concat((guide, np.array([0, 0, 1.5707963, 1])))
         padded_guide = torch.tensor(padded_guide).cuda()
         padded_guide = torch.unsqueeze(padded_guide, 0)
 
