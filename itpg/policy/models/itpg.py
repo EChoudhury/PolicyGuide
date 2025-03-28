@@ -35,7 +35,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         optimizer: DictConfig,
         affordance_checkpoint: dict,
         replan_freq: int,
-        stats_path: str,
+        stats_path: None = None,
     ):
         super(ITPG, self).__init__()
 
@@ -49,9 +49,8 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         self.diffusion_policy = DiffusionPolicy(self.config, self.stats)
 
         # affordance policy network
-        print(affordance_checkpoint)
-        self.camera = self._get_camera("/home/choudhue/PolicyGuide/hydra_outputs/datacollection/2025-03-24_16-05-27")
-        self.affordance_policy, _ = get_aff_model(**affordance_checkpoint)
+        self.camera = self._get_camera(affordance_checkpoint.merged_folder)
+        self.affordance_policy, _ = get_aff_model(**affordance_checkpoint.model)
         self.affordance_policy = self.affordance_policy.cuda()
 
         self.modality_scope = "vis"
@@ -79,6 +78,9 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
 
 
     def _get_stats(self, stats_path: str):
+        if stats_path is None:
+            print(f"No statistics path included. Continuing with no normalization...")
+            return None
         print(f"Retrieving stats data from {stats_path}...")
         with open(stats_path, 'rb') as pickle_file:
             loaded_data = pickle.load(pickle_file)
@@ -241,30 +243,30 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         converted_obs = self._convert_batch(obs, train=False, infer=True)
 
         # replan every replan_freq steps (default 30 i.e every second)
-        # padded_guide = None
+        padded_guide = None
         # if self.rollout_step_counter % self.replan_freq == 0:
             # Not using language goal for now
             # convert observations
             # Use affordance model to get the guide
-        frame = converted_obs["observation.image_static"][:,-1,...].detach().cpu().numpy()
-        frame = frame.squeeze()
-        frame = (frame * 255.0).astype("uint8")
-        frame = np.transpose(frame, (1, 2, 0))
-        frame = cv2.resize(frame, ([224, 224]))
-        if frame.shape[-1] == 1:
-            frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
-        affordance_obs = {"img": frame, "lang_goal": goal}
-        afford_pred = self.affordance_policy.predict(affordance_obs)
-        guide = self.camera.deproject_single_depth(afford_pred["pixel"], afford_pred["depth"])
-        padded_guide = np.concat((guide, np.array([0, 0, 1.5707963, 1])))
-        padded_guide = torch.tensor(padded_guide).cuda()
-        padded_guide = torch.unsqueeze(padded_guide, 0)
+        # frame = converted_obs["observation.image_static"][:,-1,...].detach().cpu().numpy()
+        # frame = frame.squeeze()
+        # frame = (frame * 255.0).astype("uint8")
+        # frame = np.transpose(frame, (1, 2, 0))
+        # frame = cv2.resize(frame, ([224, 224]))
+        # if frame.shape[-1] == 1:
+        #     frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
+        # affordance_obs = {"img": frame, "lang_goal": goal}
+        # afford_pred = self.affordance_policy.predict(affordance_obs)
+        # guide = self.camera.deproject_single_depth(afford_pred["pixel"], afford_pred["depth"])
+        # padded_guide = np.concat((guide, np.array([0, 0, 1.5707963, 1])))
+        # padded_guide = torch.tensor(padded_guide).cuda()
+        # padded_guide = torch.unsqueeze(padded_guide, 0)
 
         # Run inference on diffusion policy
-        action = self.diffusion_policy.run_inference(converted_obs, guide=padded_guide)
+        action = self.diffusion_policy.run_inference(converted_obs) #, guide=padded_guide)
 
         self.rollout_step_counter += 1
-        return action, padded_guide
+        return action #, padded_guide
 
     def load_lang_embeddings(self, embeddings_path):
         """

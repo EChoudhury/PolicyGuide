@@ -5,10 +5,10 @@ _target_: itpg.policy.models.itpg.ITPG
 _recursive_: false
 
 replan_freq: 1
-stats_path: /home/choudhue/PolicyGuide/dataset/calvin_debug_dataset/stats/dataset.pkl
+stats_path: null #/home/choudhue/PolicyGuide/dataset/calvin_debug_dataset/stats/dataset.pkl
 
 affordance_checkpoint:
-  merged_folder: /home/choudhue/PolicyGuide/hydra_outputs/datacollection/2025-03-24_16-05-27
+  merged_folder: /home/choudhue/PolicyGuide/dataset/calvin_d_dataset/calvin_d_dataset
   model:
     train_folder: /home/choudhue/PolicyGuide/hydra_outputs/affordance_model/2025-03-25/11-36-18
     model_name: val_err.ckpt

@@ -188,6 +188,7 @@ class SharedMemoryLoader:
         # lang data
         for i, (start_idx, end_idx) in enumerate(tqdm(lang_ep_start_end_ids)):
             for key in lang_episode_dict:
+                print(key)
                 offset, step = lang_episode_dict[key][start_idx]
                 for j, idx in enumerate(range(start_idx, end_idx + 1 - self.min_window_size_lang)):
                     episode_lookup_lang[key].append((offset, step + j))

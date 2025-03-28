@@ -238,11 +238,13 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug):
             obs_history = [obs, obs]
                         
         combined_obs = combine_observations(obs_history)
-        action, guide = model.step(combined_obs, lang_annotation)
+        guide = None
+        action = model.step(combined_obs, lang_annotation)
+        # action, guide = model.step(combined_obs, lang_annotation)
 
         for i in range(action.shape[1]):
             action_viz.append(visualize_point(client_id, action[:, i, :3].squeeze(), [0,1,0,1]))
-            if step >= 8:
+            if step >= 1:
                 remove_oldest_sphere(action_viz, client_id)
         for i in range(action.shape[1]):
             obs, _, _, current_info = env.step(action[:,i,...])
@@ -252,7 +254,8 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug):
             obs_history.append(obs)        
 
             if debug:
-                guide_viz.append(visualize_point(client_id, guide[0]))
+                if guide is not None:
+                    guide_viz.append(visualize_point(client_id, guide[0]))
                 img = env.render(mode="rgb_array")
                 join_vis_lang(img, lang_annotation)
                 # time.sleep(0.1)
@@ -261,7 +264,8 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug):
                 collect_plan(model, plans, subtask)
 
             if step >= 3:
-                remove_oldest_sphere(guide_viz, client_id)
+                if guide is not None:
+                    remove_oldest_sphere(guide_viz, client_id)
 
         # check if current step solves a task
         current_task_info = task_oracle.get_task_info_for_set(start_info, current_info, {subtask})
