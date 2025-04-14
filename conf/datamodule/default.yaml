@@ -6,5 +6,8 @@ defaults:
 _target_: itpg.datasets.policy_guide_data_module.PolicyGuideDataModule
 _recursive_: false
 root_data_dir: "/home/choudhue/PolicyGuide/dataset/calvin_D_3T_dataset"
+action_space: 7
+action_max: [1., 1., 1., 1., 1., 1., 1.,]
+action_min: [-1., -1., -1., -1., -1., -1., -1]
 shuffle_val: false
 lang_folder: "lang_annotations"

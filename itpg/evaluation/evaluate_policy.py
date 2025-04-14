@@ -111,7 +111,8 @@ def evaluate_policy(model, env, epoch, eval_log_dir=None, debug=False, create_pl
         eval_sequences = tqdm(eval_sequences, position=0, leave=True)
 
     for initial_state, eval_sequence in eval_sequences:
-        result = evaluate_sequence(env, model, task_oracle, initial_state, eval_sequence, val_annotations, plans, debug)
+        with torch.amp.autocast('cuda'):
+            result = evaluate_sequence(env, model, task_oracle, initial_state, eval_sequence, val_annotations, plans, debug)
         results.append(result)
         if not debug:
             eval_sequences.set_description(
@@ -203,6 +204,7 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug):
         for i in range(action.shape[1]):
             obs, _, _, current_info = env.step(action[:,i,...])
             # print(obs)
+            # print(f"Action: {action[:,i,...]}")
             # print(obs.keys())
             obs_history = obs_history[-1:]
             obs_history.append(obs)        

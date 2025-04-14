@@ -410,7 +410,7 @@ class Rollout(Callback):
             task_ids: list of task ids of successful tasks in this batch
             batch_seq_ids: list sequence indices of successful tasks in this batch
         """
-        print(f"Batch (get_task_info_of_batch): {batch}")
+        print(f"Batch (get_task_info_of_batch): {batch.keys()}")
         task_ids = []
         batch_seq_ids = []
         reset_info = batch["state_info"]

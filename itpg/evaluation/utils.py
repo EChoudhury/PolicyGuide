@@ -24,12 +24,14 @@ logger = logging.getLogger(__name__)
 def get_default_model_and_env(train_folder, dataset_path, checkpoint, env=None, device_id=0):
     train_cfg_path = Path(train_folder) / ".hydra/config.yaml"
     train_cfg_path = format_sftp_path(train_cfg_path)
+    print(train_cfg_path)
     cfg = OmegaConf.load(train_cfg_path)
-    lang_folder = cfg.datamodule.lang_folder #cfg.datamodule.datasets.lang_dataset.lang_folder
+    lang_folder = cfg.datamodule.datasets.lang_folder
     if not hydra.core.global_hydra.GlobalHydra.instance().is_initialized():
         hydra.initialize("../../conf/datamodule/datasets")
     # we don't want to use shm dataset for evaluation
-    datasets_cfg = hydra.compose("vision_lang.yaml", overrides=["lang_dataset.lang_folder=" + lang_folder])
+    # datasets_cfg = hydra.compose("vision_lang.yaml", overrides=["lang_dataset.lang_folder=" + lang_folder])
+    datasets_cfg = hydra.compose("policy_guide_dataset.yaml", overrides=["lang_folder=" + lang_folder])
     # since we don't use the trainer during inference, manually set up data_module
     cfg.datamodule.datasets = datasets_cfg
     cfg.datamodule.root_data_dir = dataset_path
@@ -37,7 +39,7 @@ def get_default_model_and_env(train_folder, dataset_path, checkpoint, env=None, 
     data_module.prepare_data()
     data_module.setup()
     dataloader = data_module.val_dataloader()
-    dataset = dataloader.dataset.datasets["lang"]
+    dataset = dataloader.dataset #.datasets["lang"]
     device = torch.device(f"cuda:{device_id}")
 
     if env is None:
@@ -175,6 +177,24 @@ def imshow_tensor(window, img_tensor, wait=0, resize=True, keypoints=None, text=
     else:
         cv2.imshow(window, img[:, :, ::-1])
     cv2.waitKey(wait)
+
+def visualize_path(client_id, points, color=[0, 1, 0], line_width=2):
+    """
+    Visualizes a path by connecting a series of points with lines in the PyBullet environment.
+
+    Args:
+        client_id: The PyBullet client ID.
+        points: A list of 3D points (e.g., [[x1, y1, z1], [x2, y2, z2], ...]).
+        color: The color of the line (default is red).
+        line_width: The width of the line (default is 2).
+    """
+    for i in range(len(points) - 1):
+        start_point = points[i]
+        end_point = points[i + 1]
+        pybullet.addUserDebugLine(
+            start_point, end_point, lineColorRGB=color[:3], lineWidth=line_width, physicsClientId=client_id
+        )
+
 
 def visualize_point(client_id, point, color=[1,0,0,1]):
     # Define sphere properties

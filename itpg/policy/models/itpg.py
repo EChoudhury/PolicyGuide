@@ -143,8 +143,8 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
             "observation.image_static": batch['rgb_obs']['rgb_static'].view(B, n_obs_steps, C, H, W),
         }
 
-        converted_batch["observation.image_static"] = converted_batch["observation.image_static"][:,:self.config.n_obs_steps,...]
-        converted_batch["observation.state"] = converted_batch["observation.state"][:,:self.config.n_obs_steps,:]
+        converted_batch["observation.image_static"] = converted_batch["observation.image_static"][:,:self.config.n_obs_steps,...].float()
+        converted_batch["observation.state"] = converted_batch["observation.state"][:,:self.config.n_obs_steps,:].float()
 
         if train:
             action_dim = batch['actions'].shape[-1]
@@ -258,9 +258,8 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         Returns:
             Predicted action.
         """
-        
         converted_obs = self._convert_batch(obs, train=False, infer=True)
-
+        
         # replan every replan_freq steps (default 30 i.e every second)
         padded_guide = None
         # if self.rollout_step_counter % self.replan_freq == 0:
@@ -282,10 +281,10 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
             # padded_guide = torch.unsqueeze(padded_guide, 0)
 
         # Run inference on diffusion policy
-        action = self.diffusion_policy.run_inference(converted_obs) #, guide=padded_guide)
+        action = self.diffusion_policy.run_inference(converted_obs, guide=padded_guide)
 
         self.rollout_step_counter += 1
-        return action #, padded_guide
+        return action, padded_guide
 
     def load_lang_embeddings(self, embeddings_path):
         """

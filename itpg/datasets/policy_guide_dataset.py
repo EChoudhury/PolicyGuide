@@ -18,7 +18,7 @@ def dict_apply(
         if isinstance(value, dict):
             result[key] = dict_apply(value, func)
         else:
-            result[key] = func(value).half()
+            result[key] = func(value).float()
     return result
 
 
