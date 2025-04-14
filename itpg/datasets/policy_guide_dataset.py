@@ -41,6 +41,7 @@ class PolicyGuideDataset(Dataset):
             proprio_state: DictConfig,
             dataset_dir: str,
             abs_datasets_dir: str,
+            lang_folder: str,
             transforms: Dict = {},
             n_obs_steps: int = 2,
             horizon: int = 16,
@@ -56,12 +57,14 @@ class PolicyGuideDataset(Dataset):
         self.relative_actions = "rel_actions" in self.observation_space["actions"]
         
         self.datasets_dir = dataset_dir
-        self.abs_datasets_dir = abs_datasets_dir
+        self.abs_datasets_dir = dataset_dir
         self.n_obs_steps = n_obs_steps
         self.horizon = horizon
         self.n_action_steps = n_action_steps
         self.pad_before = pad_before
         self.pad_after = pad_after
+
+        self.lang_folder = lang_folder 
 
         self.keys = [
             'language', 

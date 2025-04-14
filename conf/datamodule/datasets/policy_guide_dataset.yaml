@@ -1,5 +1,7 @@
 _target_: itpg.datasets.policy_guide_dataset.PolicyGuideDataset
 dataset_dir: /home/choudhue/PolicyGuide/dataset/calvin_D_3T_dataset
+abs_datasets_dir: /home/choudhue/PolicyGuide/dataset/calvin_D_3T_dataset
+lang_folder: "lang_annotations"
 proprio_state: ${datamodule.proprioception_dims}
 obs_space: ${datamodule.observation_space}
 n_obs_steps: 2

@@ -347,6 +347,7 @@ def viz_rendered_data(path):
 
 def instantiate_test_env(cfg, labeling_mode, new_cfg=True):
     play_data_dir = get_abspath(cfg.play_data_dir)
+    print(play_data_dir)
     env = None
 
     if "real_world" not in labeling_mode:

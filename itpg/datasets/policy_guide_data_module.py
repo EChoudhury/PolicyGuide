@@ -39,11 +39,11 @@ class PolicyGuideDataModule(pl.LightningDataModule):
         self.shuffle_val = shuffle_val
 
     def prepare_data(self, *args, **kwargs):
-        print("Nothing to see here yet ( ͡° ͜ʖ ͡°)_/¯")
+        print("Loading Data...╰( ͡° ͜ʖ ͡°)つ──☆*:・ﾟ")
 
     def setup(self, stage=None):
-        self.train_dataset = hydra.utils.instantiate(self.datasets_cfg, dataset_dir=self.training_dir, abs_datasets_dir=self.abs_path)
-        self.val_dataset = hydra.utils.instantiate(self.datasets_cfg, dataset_dir=self.val_dir, abs_datasets_dir=self.abs_path)
+        self.train_dataset = hydra.utils.instantiate(self.datasets_cfg, dataset_dir=self.training_dir, abs_datasets_dir=self.abs_datasets_dir)
+        self.val_dataset = hydra.utils.instantiate(self.datasets_cfg, dataset_dir=self.val_dir, abs_datasets_dir=self.abs_datasets_dir)
 
     def train_dataloader(self):
         return DataLoader(

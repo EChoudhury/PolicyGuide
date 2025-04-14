@@ -126,9 +126,9 @@ class Rollout(Callback):
     def on_validation_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
         """Called when the validation loop begins."""
         if self.env is None:
-            self.modalities = trainer.datamodule.modalities  # type: ignore
+            # self.modalities = trainer.datamodule.modalities  # type: ignore
             self.device = pl_module.device
-            dataset = trainer.val_dataloaders[0].dataset.datasets["vis"]  # type: ignore
+            dataset = trainer.val_dataloaders[0].dataset # type: ignore
             print(f"Dataset 133 Rollout: {dataset}")
             from itpg.rollout.rollout_long_horizon import RolloutLongHorizon
 
@@ -147,6 +147,7 @@ class Rollout(Callback):
                     save_dir=self.save_dir,
                 )
             if "lang" in self.modalities:
+                print(dataset.abs_datasets_dir / dataset.lang_folder / "embeddings.npy")
                 pl_module.load_lang_embeddings(dataset.abs_datasets_dir / dataset.lang_folder / "embeddings.npy")  # type: ignore
 
     def on_validation_batch_end(
