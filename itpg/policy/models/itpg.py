@@ -98,6 +98,25 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         return static_cam
 
 
+    def _rearrange_batch_imgs(self, batch: Dict[str, Dict]) -> Dict[str, torch.Tensor]:
+        """
+        Convert the batch dictionary into the desired format.
+
+        Args:
+            batch (dict): Input batch dictionary.
+
+        Returns:
+            dict: Converted batch dictionary.
+        """
+        B = batch['observation.state'].shape[0]
+        n_obs_steps = batch['observation.state'].shape[1]  # Number of observation steps
+
+        # Assuming same image size for all cameras
+        H, W, C = batch['observation.image_static'].shape[2:]  # Channels, height, and width of images
+        batch["observation.image_static"] = batch['observation.image_static'].view(B, n_obs_steps, C, H, W)
+        
+        return batch
+    
     def _convert_batch(self, batch: Dict[str, Dict], train=True, infer=False) -> Dict[str, torch.Tensor]:
         """
         Convert the batch dictionary into the desired format.
@@ -135,7 +154,6 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         # print(converted_batch["observation.image_static"].shape, converted_batch["observation.state"].shape)
         
         return converted_batch
-    
 
     def training_step(self, batch: Dict[str, Dict], batch_idx: int) -> torch.Tensor:  # type: ignore
         """
@@ -168,8 +186,9 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
             loss tensor
         """
         # convert observations
-        converted_obs = self._convert_batch(batch["vis"])
-        
+        # converted_obs = self._convert_batch(batch["vis"])
+        # print(batch)
+        converted_obs = self._rearrange_batch_imgs(batch)
         # Run through diffusion policy
         loss = self.diffusion_policy.forward(converted_obs)
         
@@ -208,8 +227,8 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
             Dictionary containing losses and the sampled plans of plan recognition and plan proposal networks.
         """
         # convert observations
-        converted_obs = self._convert_batch(batch["vis"])
-
+        # converted_obs = self._convert_batch(batch["vis"])
+        converted_obs = self._rearrange_batch_imgs(batch)
         # Run inference on diffusion policy
         loss = self.diffusion_policy.forward(converted_obs)
 
@@ -248,19 +267,19 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
             # Not using language goal for now
             # convert observations
             # Use affordance model to get the guide
-        # frame = converted_obs["observation.image_static"][:,-1,...].detach().cpu().numpy()
-        # frame = frame.squeeze()
-        # frame = (frame * 255.0).astype("uint8")
-        # frame = np.transpose(frame, (1, 2, 0))
-        # frame = cv2.resize(frame, ([224, 224]))
-        # if frame.shape[-1] == 1:
-        #     frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
-        # affordance_obs = {"img": frame, "lang_goal": goal}
-        # afford_pred = self.affordance_policy.predict(affordance_obs)
-        # guide = self.camera.deproject_single_depth(afford_pred["pixel"], afford_pred["depth"])
-        # padded_guide = np.concat((guide, np.array([0, 0, 1.5707963, 1])))
-        # padded_guide = torch.tensor(padded_guide).cuda()
-        # padded_guide = torch.unsqueeze(padded_guide, 0)
+            # frame = converted_obs["observation.image_static"][:,-1,...].detach().cpu().numpy()
+            # frame = frame.squeeze()
+            # frame = (frame * 255.0).astype("uint8")
+            # frame = np.transpose(frame, (1, 2, 0))
+            # frame = cv2.resize(frame, ([224, 224]))
+            # if frame.shape[-1] == 1:
+            #     frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
+            # affordance_obs = {"img": frame, "lang_goal": goal}
+            # afford_pred = self.affordance_policy.predict(affordance_obs)
+            # guide = self.camera.deproject_single_depth(afford_pred["pixel"], afford_pred["depth"])
+            # padded_guide = np.concat((guide, np.array([0, 0, 1.5707963, 1])))
+            # padded_guide = torch.tensor(padded_guide).cuda()
+            # padded_guide = torch.unsqueeze(padded_guide, 0)
 
         # Run inference on diffusion policy
         action = self.diffusion_policy.run_inference(converted_obs) #, guide=padded_guide)

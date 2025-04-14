@@ -1,0 +1,17 @@
+_target_: calvin_env.envs.tasks.Tasks
+tasks:
+  # open/close
+  open_drawer: [move_door_rel, 'base__drawer', 0.12]  # 0 - 0.24
+
+  # lights
+  turn_on_lightbulb: [toggle_light, 'lightbulb', 0, 1]
+  turn_on_led: [ toggle_light, 'led', 0, 1 ]
+
+# signatures of available base tasks:
+# rotate_object(obj_name, degrees, x_y_threshold=30, z_treshold=180):
+# push_object(obj_name, x_direction, y_direction):
+# lift_object(obj_name, z_direction, surface_body=None, surface_link=None):
+# place_object(dest_body, dest_link=None):
+# push_object_into(obj_name, src_body, dest_body):
+# move_door_abs(start_info, end_info, obj_name, joint_name, start_threshold, end_threshold):
+# move_door_rel(obj_name, joint_name, threshold):

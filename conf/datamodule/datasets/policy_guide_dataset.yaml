@@ -1,0 +1,15 @@
+_target_: itpg.datasets.policy_guide_dataset.PolicyGuideDataset
+dataset_dir: /home/choudhue/PolicyGuide/dataset/calvin_D_3T_dataset
+proprio_state: ${datamodule.proprioception_dims}
+obs_space: ${datamodule.observation_space}
+n_obs_steps: 2
+horizon: 16
+n_action_steps: 8
+pad_before: 0
+pad_after: 0
+batch_size: 64
+num_workers: 1
+image_shape: 
+  height: 200
+  width: 200
+  channels: 3

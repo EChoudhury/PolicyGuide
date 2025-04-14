@@ -292,7 +292,7 @@ class DiffusionModel(nn.Module):
         # Extract image feature (first combine batch, sequence, and camera index dims).
         if self._use_images:
             img_features = self.rgb_encoder(
-                einops.rearrange(batch["observation.images"], "b s n ... -> (b s n) ...")
+                einops.rearrange(batch["observation.images"].half(), "b s n ... -> (b s n) ...")
             )
             # Separate batch dim and sequence dim back out. The camera index dim gets absorbed into the
             # feature dim (effectively concatenating the camera features).

@@ -61,7 +61,7 @@ def train(cfg: DictConfig) -> None:
         "benchmark": False,
     }
 
-    # # Configure multi-GPU training
+    # Configure multi-GPU training
     if is_multi_gpu_training(trainer_args["devices"]):
         # increase default timeout for loading data into shared memory
         trainer_args["strategy"] = DDPStrategy(find_unused_parameters=False, timeout=timedelta(seconds=3600))

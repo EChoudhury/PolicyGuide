@@ -1,0 +1,6 @@
+
+# open/close
+open_drawer: ["pull the handle to open the drawer"]
+
+turn_on_lightbulb: ["use the switch to turn on the light bulb"]
+turn_on_led: ["press the button to turn on the led light"]

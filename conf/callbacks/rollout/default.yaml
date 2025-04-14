@@ -1,7 +1,7 @@
 defaults:
-  - /callbacks/rollout/tasks@tasks: new_playtable_tasks
-  - /annotations@val_annotations: new_playtable_validation
-_target_: itpg.rollout.rollout.Rollout
+  - /callbacks/rollout/tasks@tasks: calvin_D_3T_tasks
+  - /annotations@val_annotations: calvin_D_3T_validation
+_target_: itpg.rollout.rollout_itpg.Rollout
 _recursive_: false
 env_cfg:
   _target_: itpg.evaluation.wrappers.calvin_env_wrapper.CalvinEnvWrapper
@@ -15,7 +15,7 @@ empty_cache: true
 log_video_to_file: false
 save_dir: ./videos
 add_goal_thumbnail: true
-min_window_size: ${datamodule.datasets.vision_dataset.min_window_size}
-max_window_size: ${datamodule.datasets.vision_dataset.max_window_size}
+min_window_size: 16 #${datamodule.datasets.vision_dataset.min_window_size}
+max_window_size: 32 #${datamodule.datasets.vision_dataset.max_window_size}
 id_selection_strategy: "select_longest"
-lang_folder: ${datamodule.datasets.lang_dataset.lang_folder}
+lang_folder: "lang_annotations" #${datamodule.datasets.lang_dataset.lang_folder}
