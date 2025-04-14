@@ -1,5 +1,5 @@
 import argparse
-from collections import Counter, defaultdict
+from collections import Counter, defaultdict, deque
 import logging
 import os
 from pathlib import Path
@@ -22,6 +22,8 @@ from itpg.evaluation.utils import (
     get_log_dir,
     join_vis_lang,
     print_and_save,
+    visualize_point,
+    remove_oldest_sphere,
 )
 from itpg.utils.utils import get_all_checkpoints, get_checkpoints_for_epochs, get_last_checkpoint
 import hydra
@@ -49,6 +51,7 @@ def get_epoch(checkpoint):
 def make_env(dataset_path):
     val_folder = Path(dataset_path) / "validation"
     env = get_env(val_folder, show_gui=False)
+    print(env.p)
 
     # insert your own env wrapper
     # env = Wrapper(env)
@@ -220,6 +223,10 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug):
         print(f"{subtask} ", end="")
         time.sleep(0.5)
     obs = env.get_obs()
+    guide_viz = deque()
+    action_viz = deque()
+    client_id = env.cid  # or env.sim.physics_client
+    print(f"Calvin Physics Client ID: {client_id}")
     # get lang annotation for subtask
     lang_annotation = val_annotations[subtask][0]
     model.reset()
@@ -231,7 +238,14 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug):
             obs_history = [obs, obs]
                         
         combined_obs = combine_observations(obs_history)
+        guide = None
         action = model.step(combined_obs, lang_annotation)
+        # action, guide = model.step(combined_obs, lang_annotation)
+
+        for i in range(action.shape[1]):
+            action_viz.append(visualize_point(client_id, action[:, i, :3].squeeze(), [0,1,0,1]))
+            if step >= 1:
+                remove_oldest_sphere(action_viz, client_id)
         for i in range(action.shape[1]):
             obs, _, _, current_info = env.step(action[:,i,...])
             # print(obs)
@@ -240,12 +254,18 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug):
             obs_history.append(obs)        
 
             if debug:
+                if guide is not None:
+                    guide_viz.append(visualize_point(client_id, guide[0]))
                 img = env.render(mode="rgb_array")
                 join_vis_lang(img, lang_annotation)
                 # time.sleep(0.1)
             if step == 0:
                 # for tsne plot, only if available
                 collect_plan(model, plans, subtask)
+
+            if step >= 3:
+                if guide is not None:
+                    remove_oldest_sphere(guide_viz, client_id)
 
         # check if current step solves a task
         current_task_info = task_oracle.get_task_info_for_set(start_info, current_info, {subtask})

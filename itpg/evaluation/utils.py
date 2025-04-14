@@ -15,6 +15,7 @@ from numpy import pi
 from omegaconf import OmegaConf
 import pyhash
 import torch
+import pybullet
 
 hasher = pyhash.fnv1_32()
 logger = logging.getLogger(__name__)
@@ -65,6 +66,7 @@ def collect_plan(model, plans, subtask):
 
 def join_vis_lang(img, lang_text):
     """Takes as input an image and a language instruction and visualizes them with cv2"""
+    img = img['rgb_static']
     img = img[:, :, ::-1].copy()
     img = cv2.resize(img, (500, 500))
     add_text(img, lang_text)
@@ -173,6 +175,36 @@ def imshow_tensor(window, img_tensor, wait=0, resize=True, keypoints=None, text=
     else:
         cv2.imshow(window, img[:, :, ::-1])
     cv2.waitKey(wait)
+
+def visualize_point(client_id, point, color=[1,0,0,1]):
+    # Define sphere properties
+    radius = 0.02
+    mass = 0  # Use 0 for a static sphere
+    position = [point[0], point[1], point[2]]  # Your desired 3D point
+
+    # Create sphere in the Calvin environment's physics client
+    collision_shape = pybullet.createCollisionShape(pybullet.GEOM_SPHERE, radius=radius, physicsClientId=client_id)
+    visual_shape = pybullet.createVisualShape(pybullet.GEOM_SPHERE, radius=radius, rgbaColor=color, physicsClientId=client_id)
+
+    # Create the actual sphere body
+    sphere_id = pybullet.createMultiBody(
+        baseMass=mass,
+        baseCollisionShapeIndex=collision_shape,
+        baseVisualShapeIndex=visual_shape,
+        basePosition=position,
+        physicsClientId=client_id
+    )
+
+    # print(f"Sphere added at {position} with ID {sphere_id}")
+    return sphere_id
+
+def remove_oldest_sphere(queue, client_id):
+    if queue:
+        sphere_id = queue.popleft()  # Get and remove the oldest sphere
+        pybullet.removeBody(sphere_id, physicsClientId=client_id)
+        # print(f"Removed sphere with ID {sphere_id}")
+    else:
+        print("No spheres left to remove.")
 
 
 def print_task_log(demo_task_counter, live_task_counter, mod):

@@ -45,6 +45,7 @@ Then update or override the stats_path variable in the default configuration fil
 
 Also, update the statistics.yaml files in the dataset directories to point to `itpg.utils.transforms....`
 
+
 ## Training
 Launch default training.
 ```bash

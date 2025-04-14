@@ -56,7 +56,7 @@ class DiffusionPolicy(nn.Module, PyTorchModelHubMixin):
         self,
         config: DiffusionConfig | None = None,
         dataset_stats: dict[str, dict[str, Tensor]] | None = None,
-        alignment_strategy: str = 'post-hoc',
+        alignment_strategy: str = 'stochastic-sampling',
     ):
         """
         Args:
@@ -70,15 +70,18 @@ class DiffusionPolicy(nn.Module, PyTorchModelHubMixin):
             config = DiffusionConfig()
         self.config = config
 
-        self.normalize_inputs = Normalize(
-            config.input_shapes, config.input_normalization_modes, dataset_stats
-        )
-        self.normalize_targets = Normalize(
-            config.output_shapes, config.output_normalization_modes, dataset_stats
-        )
-        self.unnormalize_outputs = Unnormalize(
-            config.output_shapes, config.output_normalization_modes, dataset_stats
-        )
+        self.dataset_stats = dataset_stats
+        print(dataset_stats)
+        if self.dataset_stats:
+            self.normalize_inputs = Normalize(
+                config.input_shapes, config.input_normalization_modes, dataset_stats
+            )
+            self.normalize_targets = Normalize(
+                config.output_shapes, config.output_normalization_modes, dataset_stats
+            )
+            self.unnormalize_outputs = Unnormalize(
+                config.output_shapes, config.output_normalization_modes, dataset_stats
+            )
 
         # queues are populated during rollout of the policy, they contain the n latest observations and actions
         self._queues = None
@@ -98,23 +101,27 @@ class DiffusionPolicy(nn.Module, PyTorchModelHubMixin):
 
     @torch.no_grad
     def run_inference(self, observation_batch: dict[str, Tensor], guide: Tensor | None = None, visualizer=None, multi=False) -> Tensor:
-        observation_batch = self.normalize_inputs(observation_batch)
-        if guide is not None:
-            guide = self.normalize_targets({"action": guide})["action"]
+        if self.dataset_stats:
+            observation_batch = self.normalize_inputs(observation_batch)
+            if guide is not None:
+                guide = self.normalize_targets({"action": guide})["action"]
         if len(self.expected_image_keys) > 0:
             observation_batch["observation.images"] = torch.stack(
                 [observation_batch[k] for k in self.expected_image_keys], dim=-4
             )
         actions = self.diffusion.generate_actions(observation_batch, guide=guide, visualizer=visualizer, normalizer=self, multi=multi)
-        actions = self.unnormalize_outputs({"action": actions})["action"]
+        if self.dataset_stats:
+            actions = self.unnormalize_outputs({"action": actions})["action"]
         return actions
 
     def forward(self, batch: dict[str, Tensor]) -> dict[str, Tensor]:
         """Run the batch through the model and compute the loss for training or validation."""
-        batch = self.normalize_inputs(batch)
+        if self.dataset_stats:
+            batch = self.normalize_inputs(batch)
         if len(self.expected_image_keys) > 0:
             batch["observation.images"] = torch.stack([batch[k] for k in self.expected_image_keys], dim=-4)
-        batch = self.normalize_targets(batch)
+        if self.dataset_stats:
+            batch = self.normalize_targets(batch)
         loss = self.diffusion.compute_loss(batch)
         return loss
     
@@ -236,7 +243,7 @@ class DiffusionModel(nn.Module):
                     if self.alignment_strategy == 'guided-diffusion':
                         guide_ratio = 20 
                     elif self.alignment_strategy == 'stochastic-sampling':
-                        guide_ratio = 30 
+                        guide_ratio = 60 
                     else:
                         guide_ratio = 0
                     model_output = model_output + guide_ratio * grad
@@ -266,8 +273,7 @@ class DiffusionModel(nn.Module):
         # print('noisy action shape:', naction.shape, 'guide shape:', guide.shape)
         # print('mean and std of naction', naction.mean(), naction.std())
         # print('mean and std of guide', guide.mean(), guide.std())
-
-        assert naction.shape[2] == 2 and guide.shape[1] == 2
+        assert naction.shape[2] == 7 and guide.shape[1] == 7
         indices = torch.linspace(0, guide.shape[0]-1, naction.shape[1], dtype=int)
         guide = torch.unsqueeze(guide[indices], dim=0) # (1, pred_horizon, action_dim)
         assert guide.shape == (1, naction.shape[1], naction.shape[2])
