@@ -180,7 +180,7 @@ class CALVINSkillExtractor:
 def generate_episode_dict(episode, language):
     eps_len = int(episode["robot_obs"].shape[0])
 
-    # Low-dim observations (robot_no_joints
+    # Low-dim observations (robot_no_joints)
     selected_obs = list(range(0, 7)) + [14]
     state_obs = episode["robot_obs"][:, selected_obs]
 

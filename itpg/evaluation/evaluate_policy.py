@@ -203,9 +203,7 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug):
                 remove_oldest_sphere(action_viz, client_id)
         for i in range(action.shape[1]):
             obs, _, _, current_info = env.step(action[:,i,...])
-            # print(obs)
-            # print(f"Action: {action[:,i,...]}")
-            # print(obs.keys())
+            # print(f"Observation: {obs},\nAction: {action[:,i,...]}\n\n")
             obs_history = obs_history[-1:]
             obs_history.append(obs)        
 

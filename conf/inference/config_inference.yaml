@@ -5,7 +5,7 @@ log_dir: /tmp
 visualize: True
 ep_len: 15
 replan_freq: 30
-stats_path: /home/choudhue/PolicyGuide/dataset/calvin_debug_dataset/stats/dataset.pkl
+stats_path: null #/home/choudhue/PolicyGuide/dataset/calvin_debug_dataset/stats/dataset.pkl
 processes: 1
 
 hydra:

@@ -96,14 +96,25 @@ class PolicyGuideDataset(Dataset):
             # State: B, 8
             'observation.state': sample['robot_obs'][:self.n_obs_steps,:],
             # Actions: B, 8
-            'action': sample['actions']
+            'action': sample['actions'],
+            # Annotation index
+            'language': sample['language'][:1],
         }
+
         return data
 
     def __getitem__(self, idx):
         sample = self.sampler.sample_sequence(idx)
         data = self._sample_to_data(sample)
         torch_data = dict_apply(data, torch.from_numpy)
+         # Apply transforms if available
+        if self.transforms:
+            if "observation.image_static" in self.transforms:
+                torch_data["observation.image_static"] = self.transforms["observation.image_static"](torch_data["observation.image_static"])
+            if "observation.state" in self.transforms:
+                torch_data["observation.state"] = self.transforms["observation.state"](torch_data["observation.state"])
+            if "action" in self.transforms:
+                torch_data["action"] = self.transforms["action"](torch_data["action"])
         return torch_data
         
 if __name__ == "__main__":

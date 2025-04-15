@@ -281,7 +281,9 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
             # padded_guide = torch.unsqueeze(padded_guide, 0)
 
         # Run inference on diffusion policy
+        # print(f"Observation: {converted_obs}")
         action = self.diffusion_policy.run_inference(converted_obs, guide=padded_guide)
+        # print(f"\nAction: {action}\n\n")
 
         self.rollout_step_counter += 1
         return action, padded_guide
