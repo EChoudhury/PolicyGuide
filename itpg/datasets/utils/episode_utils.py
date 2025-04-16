@@ -67,7 +67,6 @@ def process_rgb(
     window_size: int = 0,
 ) -> Dict[str, Dict[str, torch.Tensor]]:
     rgb_obs_keys = observation_space["rgb_obs"]
-
     seq_rgb_obs_dict = {}
     for _, rgb_obs_key in enumerate(rgb_obs_keys):
         rgb_obs = episode[rgb_obs_key]

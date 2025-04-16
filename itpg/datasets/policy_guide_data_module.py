@@ -51,25 +51,25 @@ class PolicyGuideDataModule(pl.LightningDataModule):
         # transforms = load_dataset_statistics(self.training_dir, self.val_dir, self.transforms)
 
         # Load and instantiate transforms
-        # train_transforms = {
-        #     cam: [hydra.utils.instantiate(transform) for transform in self.transforms.train[cam]]
-        #     for cam in self.transforms.train
-        # }
-        # val_transforms = {
-        #     cam: [hydra.utils.instantiate(transform) for transform in self.transforms.val[cam]]
-        #     for cam in self.transforms.val
-        # }
+        train_transforms = {
+            cam: [hydra.utils.instantiate(transform) for transform in self.transforms.train[cam]]
+            for cam in self.transforms.train
+        }
+        val_transforms = {
+            cam: [hydra.utils.instantiate(transform) for transform in self.transforms.val[cam]]
+            for cam in self.transforms.val
+        }
 
-        # # Compose transforms
-        # self.train_transforms = {key: torchvision.transforms.Compose(val) for key, val in train_transforms.items()}
-        # self.val_transforms = {key: torchvision.transforms.Compose(val) for key, val in val_transforms.items()}
+        # Compose transforms
+        self.train_transforms = {key: torchvision.transforms.Compose(val) for key, val in train_transforms.items()}
+        self.val_transforms = {key: torchvision.transforms.Compose(val) for key, val in val_transforms.items()}
 
         # Instantiate datasets with transforms
         self.train_dataset = hydra.utils.instantiate(
-            self.datasets_cfg, dataset_dir=self.training_dir, abs_datasets_dir=self.abs_datasets_dir, transforms=self.transforms.train
+            self.datasets_cfg, dataset_dir=self.training_dir, abs_datasets_dir=self.abs_datasets_dir, transforms=self.train_transforms
         )
         self.val_dataset = hydra.utils.instantiate(
-            self.datasets_cfg, dataset_dir=self.val_dir, abs_datasets_dir=self.abs_datasets_dir, transforms=self.transforms.val
+            self.datasets_cfg, dataset_dir=self.val_dir, abs_datasets_dir=self.abs_datasets_dir, transforms=self.val_transforms
         )
 
     def train_dataloader(self):
