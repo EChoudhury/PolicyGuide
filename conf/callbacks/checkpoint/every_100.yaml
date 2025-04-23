@@ -1,0 +1,5 @@
+_target_: pytorch_lightning.callbacks.ModelCheckpoint
+verbose: True
+dirpath: saved_models
+filename: '{epoch}'
+every_n_epochs: 100

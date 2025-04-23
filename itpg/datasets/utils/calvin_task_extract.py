@@ -110,7 +110,7 @@ class CALVINSkillExtractor:
         """
         info_indx = self.episode_lookup[idx]
         start_file_indx = info_indx[0]
-        end_file_indx = info_indx[1]
+        end_file_indx = info_indx[1] + 32
 
         lang_annotation = self.annotations_idx[idx]
 
@@ -181,14 +181,14 @@ def generate_episode_dict(episode, language):
     eps_len = int(episode["robot_obs"].shape[0])
 
     # Low-dim observations (robot_no_joints)
-    selected_obs = list(range(0, 7)) + [14]
-    state_obs = episode["robot_obs"][:, selected_obs]
+    # selected_obs = list(range(0, 7)) + [14]
+    # state_obs = episode["robot_obs"][:, selected_obs]
 
     episode_dict = []
     for i in range(eps_len):
         episode_dict.append({
             "language": language,
-            "robot_obs": state_obs[i],
+            "robot_obs": episode["robot_obs"][i],
             "rgb_static": episode["rgb_static"][i],
             "rgb_gripper": episode["rgb_gripper"][i],
             "actions": episode["actions"][i],
@@ -202,7 +202,7 @@ def make_dataset(load_path, save_dir, step_len, multi_dir=False):
         os.makedirs(save_dir, exist_ok=True)
 
     skill_list = [
-        "open_drawer",
+        # "open_drawer",
         # "move_slider_left",
         # "lift_pink_block_table",
         # "push_pink_block_right",
@@ -210,7 +210,7 @@ def make_dataset(load_path, save_dir, step_len, multi_dir=False):
         "turn_on_lightbulb",
         # "turn_off_lightbulb",
         # "move_slider_right",
-        "turn_on_led",
+        # "turn_on_led",
         # "turn_off_led",
         # "lift_blue_block_drawer",
         # "lift_red_block_drawer",
@@ -305,7 +305,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--save_dir",
         type=str,
-        default="/home/choudhue/PolicyGuide/dataset/calvin_D_3T_dataset",
+        default="/home/choudhue/PolicyGuide/dataset/calvin_D_1T_dataset",
     )
     parser.add_argument("--step_len", type=int, default=1)
     parser.add_argument("--full", help="Use this flag to load both training and validation data.", action=argparse.BooleanOptionalAction)

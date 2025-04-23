@@ -2,7 +2,7 @@ parent_folder: ../
 vr_data: ${paths.parent_folder}/VREnv/data/
 
 # Trained affordance models
-trained_models: /home/choudhue/PolicyGuide/dataset/calvin_debug_dataset/15-41-46/checkpoints/
+# trained_models: /home/choudhue/PolicyGuide/dataset/calvin_debug_dataset/15-41-46/checkpoints/
 
 # For training affordance model and policy
-datasets: /home/choudhue/PolicyGuide/dataset/calvin_d_dataset
+# datasets: /home/choudhue/PolicyGuide/dataset/calvin_d_dataset

@@ -40,7 +40,7 @@ def process_state(
         state_obs_list_unnormalized.append(state_tensor)
     seq_state_obs = torch.cat(state_obs_list_normalized, dim=1)
     seq_state_obs_unnormalized = torch.cat(state_obs_list_unnormalized, dim=1)
-
+    
     if not proprio_state.normalize_robot_orientation and "robot_orientation_idx" in proprio_state:
         seq_state_obs[:, slice(*proprio_state.robot_orientation_idx)] = seq_state_obs_unnormalized[
             :, slice(*proprio_state.robot_orientation_idx)
@@ -55,7 +55,6 @@ def process_state(
         seq_state_obs_ = seq_state_obs[:, slice(*slice_ids)]
         state_obs_sliced.append(seq_state_obs_)
     seq_state_obs = torch.cat(state_obs_sliced, dim=1)
-
     return {"robot_obs": seq_state_obs}
 
 

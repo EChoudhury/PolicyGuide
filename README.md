@@ -36,6 +36,17 @@ cd ~/PolicyGuide/dataset
 sh download_data.sh D | ABC | ABCD | debug
 ```
 
+## Generate Task Specific Datasets
+Use these commands to generate datasets for specific tasks. Select the tasks in the calvin_task_extract file.
+```bash
+ python -m itpg.datasets.utils.calvin_task_extract --full
+```
+Additionally, it can be valuable to visualize the dataset before training.
+```bash
+python -m itpg.datasets.utils.visualize_dataset 
+```
+*Note* You may need to update the path variable and the config file for proprioception and observations. Also, ensure the datamodule is not shuffled.
+
 ## Generate Statistics
 Diffusion Policy normalization requires dataset statistics to be generated on the entire body of data. If you wish to use normalization, generate the files:
 ```bash

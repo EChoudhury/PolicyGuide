@@ -127,6 +127,10 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         Returns:
             dict: Converted batch dictionary.
         """
+
+        print(f"Batch keys: {batch.keys()}")
+        print(f"robot_obs: {batch['robot_obs'].shape}")
+        print(f"rgb_obs: {batch['rgb_obs']['rgb_static'].shape}")
         if infer:
             B = 1
         else:
@@ -151,7 +155,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
             converted_batch["action"] = batch['actions'].view(B, n_obs_steps, action_dim)  # Assuming actions have shape (B, n_obs_steps, action_dim)
             converted_batch["action"] = converted_batch["action"][:, :self.config.horizon, :]
 
-        # print(converted_batch["observation.image_static"].shape, converted_batch["observation.state"].shape)
+        print(f"Converted shapes: {converted_batch['observation.image_static'].shape, converted_batch['observation.state'].shape}")
         
         return converted_batch
 
@@ -188,9 +192,11 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         # convert observations
         # converted_obs = self._convert_batch(batch["vis"])
         # print(batch)
-        converted_obs = self._rearrange_batch_imgs(batch)
+        # converted_obs = self._rearrange_batch_imgs(batch)
+        batch.pop("language", None) 
+        # print(batch.keys())
         # Run through diffusion policy
-        loss = self.diffusion_policy.forward(converted_obs)
+        loss = self.diffusion_policy.forward(batch)
         
         self.log("train/total_loss", loss, on_step=False, on_epoch=True)
 
@@ -228,9 +234,12 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         """
         # convert observations
         # converted_obs = self._convert_batch(batch["vis"])
-        converted_obs = self._rearrange_batch_imgs(batch)
+        # converted_obs = self._rearrange_batch_imgs(batch)
+        batch.pop("language", None) 
+        # print(batch.keys())
+        # print(batch["observation.state"].shape, batch["observation.image_static"].shape, batch["action"].shape)
         # Run inference on diffusion policy
-        loss = self.diffusion_policy.forward(converted_obs)
+        loss = self.diffusion_policy.forward(batch)
 
         self.log("valid/valid_loss", loss, on_step=False, on_epoch=True)
 
@@ -259,31 +268,34 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
             Predicted action.
         """
         converted_obs = self._convert_batch(obs, train=False, infer=True)
-        
+        # goal = "use the switch to turn on the light bulb"
         # replan every replan_freq steps (default 30 i.e every second)
         padded_guide = None
         # if self.rollout_step_counter % self.replan_freq == 0:
-            # Not using language goal for now
-            # convert observations
-            # Use affordance model to get the guide
-            # frame = converted_obs["observation.image_static"][:,-1,...].detach().cpu().numpy()
-            # frame = frame.squeeze()
-            # frame = (frame * 255.0).astype("uint8")
-            # frame = np.transpose(frame, (1, 2, 0))
-            # frame = cv2.resize(frame, ([224, 224]))
-            # if frame.shape[-1] == 1:
-            #     frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
-            # affordance_obs = {"img": frame, "lang_goal": goal}
-            # afford_pred = self.affordance_policy.predict(affordance_obs)
-            # guide = self.camera.deproject_single_depth(afford_pred["pixel"], afford_pred["depth"])
-            # padded_guide = np.concat((guide, np.array([0, 0, 1.5707963, 1])))
-            # padded_guide = torch.tensor(padded_guide).cuda()
-            # padded_guide = torch.unsqueeze(padded_guide, 0)
+        #     # Not using language goal for now
+        #     # convert observations
+        #     # Use affordance model to get the guide
+        #     frame = converted_obs["observation.image_static"][:,-1,...].detach().cpu().numpy()
+        #     print(frame.shape)
+        #     print(type(frame))
+        #     print(frame)
+        #     frame = frame.squeeze()
+        #     frame = (frame * 255.0).astype("uint8")
+        #     frame = np.transpose(frame, (1, 2, 0))
+        #     frame = cv2.resize(frame, ([224, 224]))
+        #     if frame.shape[-1] == 1:
+        #         frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
+        #     affordance_obs = {"img": frame, "lang_goal": goal}
+        #     afford_pred = self.affordance_policy.predict(affordance_obs)
+        #     guide = self.camera.deproject_single_depth(afford_pred["pixel"], afford_pred["depth"])
+        #     padded_guide = np.concat((guide, np.array([0, 0, 0, 0]))) #[0, 0, 1.5707963, 1]
+        #     padded_guide = torch.tensor(padded_guide).cuda()
+        #     padded_guide = torch.unsqueeze(padded_guide, 0)
 
         # Run inference on diffusion policy
         # print(f"Observation: {converted_obs}")
         action = self.diffusion_policy.run_inference(converted_obs, guide=padded_guide)
-        # print(f"\nAction: {action}\n\n")
+        print(f"\nAction: {action}\n\n")
 
         self.rollout_step_counter += 1
         return action, padded_guide

@@ -99,7 +99,6 @@ class PolicyGuideDataset(Dataset):
         # image = np.moveaxis(sample['rgb_static'],-1,1)/255
         data = {
             # Image: B, 200, 200, 3
-            #TODO: Rearrange the image axis to be (B, 3, 200, 200)
             'observation.image_static': sample['rgb_obs']["rgb_static"][:self.n_obs_steps,:], 
             # State: B, 8
             'observation.state': sample['robot_obs'][:self.n_obs_steps,:],
@@ -108,49 +107,37 @@ class PolicyGuideDataset(Dataset):
             # Annotation index
             'language': sample['language'][:1],
         }
-
         return data
 
     def __getitem__(self, idx):
         sample = self.sampler.sample_sequence(idx)
         data = self._get_sequences(sample)
         torch_data = self._sample_to_data(data)
-        
-        # torch_data = dict_apply(data, torch.from_numpy)
-        
-         # Apply transforms if available
-        # if self.transforms:
-        #     if "observation.image_static" in self.transforms:
-        #         torch_data["observation.image_static"] = self.transforms["observation.image_static"](torch_data["observation.image_static"])
-        #     if "observation.state" in self.transforms:
-        #         torch_data["observation.state"] = self.transforms["observation.state"](torch_data["observation.state"])
-        #     if "action" in self.transforms:
-        #         torch_data["action"] = self.transforms["action"](torch_data["action"])
         return torch_data
         
     def _get_sequences(self, episode) -> Dict:
-            """
-            Load sequence of length window_size.
+        """
+        Load sequence of length window_size.
 
-            Args:
-                idx: Index of starting frame.
-                window_size: Length of sampled episode.
+        Args:
+            idx: Index of starting frame.
+            window_size: Length of sampled episode.
 
-            Returns:
-                dict: Dictionary of tensors of loaded sequence with different input modalities and actions.
-            """
-            seq_state_obs = process_state(episode, self.observation_space, self.transforms, self.proprio_state)
-            seq_rgb_obs = process_rgb(episode, self.observation_space, self.transforms)
-            # seq_depth_obs = process_depth(episode, self.observation_space, self.transforms)
-            seq_acts = process_actions(episode, self.observation_space, self.transforms)
-            # info = get_state_info_dict(episode)
-            # seq_lang = process_language(episode, self.transforms, self.with_lang)
-            seq_lang = {"language": episode["language"][:1]}
-            # info = self._add_language_info(info, idx)
-            seq_dict = {**seq_state_obs, **seq_rgb_obs, **seq_acts, **seq_lang}  # type:ignore
-            # seq_dict["idx"] = idx  # type:ignore
+        Returns:
+            dict: Dictionary of tensors of loaded sequence with different input modalities and actions.
+        """
+        seq_state_obs = process_state(episode, self.observation_space, self.transforms, self.proprio_state)
+        seq_rgb_obs = process_rgb(episode, self.observation_space, self.transforms)
+        # seq_depth_obs = process_depth(episode, self.observation_space, self.transforms)
+        seq_acts = process_actions(episode, self.observation_space, self.transforms)
+        # info = get_state_info_dict(episode)
+        # seq_lang = process_language(episode, self.transforms, self.with_lang)
+        seq_lang = {"language": episode["language"][:1]}
+        # info = self._add_language_info(info, idx)
+        seq_dict = {**seq_state_obs, **seq_rgb_obs, **seq_acts, **seq_lang}  # type:ignore
+        # seq_dict["idx"] = idx  # type:ignore
 
-            return seq_dict
+        return seq_dict
 
 if __name__ == "__main__":
     dataset = PolicyGuideDataset(

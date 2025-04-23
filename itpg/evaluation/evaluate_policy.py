@@ -24,6 +24,7 @@ from itpg.evaluation.utils import (
     print_and_save,
     visualize_point,
     remove_oldest_sphere,
+    visualize_point_policy,
 )
 from itpg.utils.utils import get_all_checkpoints, get_checkpoints_for_epochs, get_last_checkpoint
 import hydra
@@ -33,6 +34,7 @@ from pytorch_lightning import seed_everything
 from termcolor import colored
 import torch
 from tqdm.auto import tqdm
+import pybullet as p
 
 from calvin_env.envs.play_table_env import get_env
 
@@ -197,10 +199,17 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug):
         action = model.step(combined_obs, lang_annotation)
         action, guide = model.step(combined_obs, lang_annotation)
 
-        for i in range(action.shape[1]):
-            action_viz.append(visualize_point(client_id, action[:, i, :3].squeeze(), [0,1,0,1]))
-            if step >= 1:
-                remove_oldest_sphere(action_viz, client_id)
+        # trajectory_pts = []
+
+        # for i in range(action.shape[1]):
+        #     # action_viz.append(visualize_point(client_id, action[:, i, :3].squeeze(), i))
+        #     trajectory_pts.append(action[:, i, :3].squeeze().tolist())
+        #     # if step >= 1:
+        #     #     remove_oldest_sphere(action_viz, client_id)
+
+        # Visualize the trajectory using the deque of points
+        cylinder_ids, cylinder_colors = visualize_point_policy(client_id, action[:, :, :3].squeeze())
+        # print(cylinder_ids, cylinder_colors)
         for i in range(action.shape[1]):
             obs, _, _, current_info = env.step(action[:,i,...])
             # print(f"Observation: {obs},\nAction: {action[:,i,...]}\n\n")
@@ -209,9 +218,25 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug):
 
             if debug:
                 if guide is not None:
-                    guide_viz.append(visualize_point(client_id, guide[0]))
+                    guide_viz.append(visualize_point(client_id, guide[0], 0))
+                for cylinder_id, color in zip(cylinder_ids, cylinder_colors):
+                    # Keep the original RGB values, but set alpha to 1.0 for full opacity
+                    p.changeVisualShape(
+                        objectUniqueId=cylinder_id,
+                        linkIndex=-1,
+                        rgbaColor=[color[0], color[1], color[2], 1.0],  # Update only the alpha
+                        physicsClientId=client_id
+                    )
                 img = env.render(mode="rgb_array")
                 join_vis_lang(img, lang_annotation)
+                for cylinder_id, color in zip(cylinder_ids, cylinder_colors):
+                    # Keep the original RGB values, but set alpha to 0.0
+                    p.changeVisualShape(
+                        objectUniqueId=cylinder_id,
+                        linkIndex=-1,
+                        rgbaColor=[color[0], color[1], color[2], 0.0],  # Update only the alpha
+                        physicsClientId=client_id
+                    )
                 # time.sleep(0.1)
             if step == 0:
                 # for tsne plot, only if available
@@ -220,6 +245,9 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug):
             if step >= 3:
                 if guide is not None:
                     remove_oldest_sphere(guide_viz, client_id)
+
+        for cylinder_id in cylinder_ids:
+            p.removeBody(cylinder_id, physicsClientId=client_id)
 
         # check if current step solves a task
         current_task_info = task_oracle.get_task_info_for_set(start_info, current_info, {subtask})
