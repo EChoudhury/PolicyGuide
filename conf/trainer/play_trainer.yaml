@@ -1,4 +1,4 @@
-devices: [2]
+devices: [1]
 accelerator: gpu
 precision: 16
 val_check_interval: 1.0

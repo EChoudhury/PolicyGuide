@@ -5,7 +5,7 @@ defaults:
   - loss: default
   - training: default_training
   - trainer: play_trainer
-  - logger: wandb
+  - logger: tb_logger
 
   - override hydra/job_logging: colorlog
   - override hydra/hydra_logging: colorlog

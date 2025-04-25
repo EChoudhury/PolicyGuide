@@ -23,6 +23,7 @@ def process_state(
     state_obs_list_normalized = []
     state_obs_list_unnormalized = []
     for state_ob in state_obs_keys:
+        # print(f'State Obs Initializer: {state_ob}')
         if window_size == 0 and seq_idx == 0:  # single file loader
             state_tensor = torch.from_numpy(episode[state_ob]).float()
         else:  # episode loader
@@ -40,7 +41,12 @@ def process_state(
         state_obs_list_unnormalized.append(state_tensor)
     seq_state_obs = torch.cat(state_obs_list_normalized, dim=1)
     seq_state_obs_unnormalized = torch.cat(state_obs_list_unnormalized, dim=1)
-    
+
+    # print(f'State Obs Normalized: {seq_state_obs_unnormalized}')
+
+    # print(f'Orientation idx: {proprio_state.robot_orientation_idx}')
+    # print(f'Normalize idx: {proprio_state.normalize_robot_orientation}')
+
     if not proprio_state.normalize_robot_orientation and "robot_orientation_idx" in proprio_state:
         seq_state_obs[:, slice(*proprio_state.robot_orientation_idx)] = seq_state_obs_unnormalized[
             :, slice(*proprio_state.robot_orientation_idx)
@@ -49,12 +55,15 @@ def process_state(
     if not proprio_state.normalize:
         seq_state_obs = seq_state_obs_unnormalized
 
+    # print(f'State Obs Normalized: {seq_state_obs_unnormalized}')
+
     # slice the specified parts of the proprioception state
     state_obs_sliced = []
     for slice_ids in proprio_state.keep_indices:
         seq_state_obs_ = seq_state_obs[:, slice(*slice_ids)]
         state_obs_sliced.append(seq_state_obs_)
     seq_state_obs = torch.cat(state_obs_sliced, dim=1)
+    # print(f'State Obs Final: {seq_state_obs}')
     return {"robot_obs": seq_state_obs}
 
 
@@ -131,9 +140,11 @@ def process_actions(
     if window_size == 0 and seq_idx == 0:  # single file loader
         action = episode[action_key]
         if "actions" in transforms:
+            print("True")
             action = transforms["actions"]((action, episode["robot_obs"]))
         seq_acts = torch.from_numpy(action).float()
     else:  # episode loader
+        print("else")
         seq_acts = torch.from_numpy(episode[action_key][seq_idx : seq_idx + window_size]).float()
     return {"actions": seq_acts}
 

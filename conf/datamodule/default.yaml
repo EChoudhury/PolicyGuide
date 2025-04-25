@@ -1,7 +1,7 @@
 defaults:
   - datasets: policy_guide_dataset
   - transforms: play_basic #basic_trans
-  - proprioception_dims: robot_no_joints 
+  - proprioception_dims: robot_full #robot_no_joints 
   - observation_space: lang_rgb_static_abs_act
 _target_: itpg.datasets.policy_guide_data_module.PolicyGuideDataModule
 _recursive_: false

@@ -13,6 +13,7 @@ from torch.utils.data import DataLoader
 import torchvision
 
 from itpg.datasets.policy_guide_dataset import PolicyGuideDataset
+from itpg.datasets.utils.episode_utils import load_dataset_statistics
 
 logger = logging.getLogger(__name__)
 
@@ -41,22 +42,19 @@ class PolicyGuideDataModule(pl.LightningDataModule):
         self.val_dir = root_data_path / "validation"
         self.shuffle_val = shuffle_val
         # Initialize transforms
-        self.transforms = transforms
-
-
-    def prepare_data(self, *args, **kwargs):
-        print("Loading Data...╰( ͡° ͜ʖ ͡°)つ──☆*:・ﾟ")
+        self.transforms = transforms        
 
     def setup(self, stage=None):
-        # transforms = load_dataset_statistics(self.training_dir, self.val_dir, self.transforms)
-
+        print("Loading Data...╰( ͡° ͜ʖ ͡°)つ──☆*:・ﾟ")
+        transforms = load_dataset_statistics(self.training_dir, self.val_dir, self.transforms)
+        # print(transforms)
         # Load and instantiate transforms
         train_transforms = {
-            cam: [hydra.utils.instantiate(transform) for transform in self.transforms.train[cam]]
+            cam: [hydra.utils.instantiate(transform) for transform in transforms.train[cam]]
             for cam in self.transforms.train
         }
         val_transforms = {
-            cam: [hydra.utils.instantiate(transform) for transform in self.transforms.val[cam]]
+            cam: [hydra.utils.instantiate(transform) for transform in transforms.val[cam]]
             for cam in self.transforms.val
         }
 

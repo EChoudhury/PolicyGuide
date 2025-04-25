@@ -49,7 +49,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         self.diffusion_policy = DiffusionPolicy(self.config, self.stats)
 
         # affordance policy network
-        self.camera = self._get_camera(affordance_checkpoint.merged_folder)
+        # self.camera = self._get_camera(affordance_checkpoint.merged_folder)
         self.affordance_policy, _ = get_aff_model(**affordance_checkpoint.model)
         self.affordance_policy = self.affordance_policy.cuda()
 
@@ -127,10 +127,6 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         Returns:
             dict: Converted batch dictionary.
         """
-
-        print(f"Batch keys: {batch.keys()}")
-        print(f"robot_obs: {batch['robot_obs'].shape}")
-        print(f"rgb_obs: {batch['rgb_obs']['rgb_static'].shape}")
         if infer:
             B = 1
         else:
@@ -154,8 +150,6 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
             action_dim = batch['actions'].shape[-1]
             converted_batch["action"] = batch['actions'].view(B, n_obs_steps, action_dim)  # Assuming actions have shape (B, n_obs_steps, action_dim)
             converted_batch["action"] = converted_batch["action"][:, :self.config.horizon, :]
-
-        print(f"Converted shapes: {converted_batch['observation.image_static'].shape, converted_batch['observation.state'].shape}")
         
         return converted_batch
 
@@ -295,7 +289,8 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         # Run inference on diffusion policy
         # print(f"Observation: {converted_obs}")
         action = self.diffusion_policy.run_inference(converted_obs, guide=padded_guide)
-        print(f"\nAction: {action}\n\n")
+        # print(f"\nAction: {action}\n\n")
+
 
         self.rollout_step_counter += 1
         return action, padded_guide
