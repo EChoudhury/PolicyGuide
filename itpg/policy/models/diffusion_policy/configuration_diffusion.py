@@ -145,8 +145,8 @@ class DiffusionConfig:
     beta_start: float = 0.0001
     beta_end: float = 0.02
     prediction_type: str = "epsilon"
-    clip_sample: bool = True
-    clip_sample_range: float = 1.0
+    clip_sample: bool = False
+    clip_sample_range: float = 5.0
 
     # Inference
     num_inference_steps: int | None = None

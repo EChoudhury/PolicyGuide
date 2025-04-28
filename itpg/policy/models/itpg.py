@@ -49,7 +49,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         self.diffusion_policy = DiffusionPolicy(self.config, self.stats)
 
         # affordance policy network
-        # self.camera = self._get_camera(affordance_checkpoint.merged_folder)
+        self.camera = self._get_camera(affordance_checkpoint.merged_folder)
         self.affordance_policy, _ = get_aff_model(**affordance_checkpoint.model)
         self.affordance_policy = self.affordance_policy.cuda()
 
@@ -143,8 +143,10 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
             "observation.image_static": batch['rgb_obs']['rgb_static'].view(B, n_obs_steps, C, H, W),
         }
 
-        converted_batch["observation.image_static"] = converted_batch["observation.image_static"][:,:self.config.n_obs_steps,...].float()
-        converted_batch["observation.state"] = converted_batch["observation.state"][:,:self.config.n_obs_steps,:].float()
+        converted_batch["observation.image_static"] = converted_batch["observation.image_static"][:,:self.config.n_obs_steps,...]
+        converted_batch["observation.state"] = converted_batch["observation.state"][:,:self.config.n_obs_steps,:]
+        # converted_batch["observation.image_static"] = torch.zeros_like(converted_batch["observation.image_static"][:,:self.config.n_obs_steps,...])
+        # converted_batch["observation.state"] = torch.zeros_like(converted_batch["observation.state"][:,:self.config.n_obs_steps,:])
 
         if train:
             action_dim = batch['actions'].shape[-1]
@@ -264,6 +266,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         converted_obs = self._convert_batch(obs, train=False, infer=True)
         # goal = "use the switch to turn on the light bulb"
         # replan every replan_freq steps (default 30 i.e every second)
+        # TODO: need to pass last action orn & gripper info to guide 
         padded_guide = None
         # if self.rollout_step_counter % self.replan_freq == 0:
         #     # Not using language goal for now

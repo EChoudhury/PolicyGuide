@@ -352,15 +352,15 @@ def instantiate_test_env(cfg, labeling_mode, new_cfg=True):
 
     if "real_world" not in labeling_mode:
         teleop_cfg = OmegaConf.load(os.path.join(play_data_dir, ".hydra/merged_config.yaml"))
-        if new_cfg:
-            # for c_k, c_v in teleop_cfg.cameras.items():
-            #     teleop_cfg.cameras[c_k]["_target_"] = teleop_cfg.cameras[c_k]["_target_"].replace(
-            #         "calvin_env", "vr_env"
-            #     )
-            # for c_k, c_v in teleop_cfg.items():
-            #     if isinstance(c_v, DictConfig) and "_target_" in c_v:
-            #         teleop_cfg[c_k]["_target_"] = teleop_cfg[c_k]["_target_"].replace("calvin_env", "vr_env")
-            cfg.env.robot_cfg = teleop_cfg.env.robot_cfg
+        # if new_cfg:
+        #     # for c_k, c_v in teleop_cfg.cameras.items():
+        #     #     teleop_cfg.cameras[c_k]["_target_"] = teleop_cfg.cameras[c_k]["_target_"].replace(
+        #     #         "calvin_env", "vr_env"
+        #     #     )
+        #     # for c_k, c_v in teleop_cfg.items():
+        #     #     if isinstance(c_v, DictConfig) and "_target_" in c_v:
+        #     #         teleop_cfg[c_k]["_target_"] = teleop_cfg[c_k]["_target_"].replace("calvin_env", "vr_env")
+        #     cfg.env.robot_cfg = teleop_cfg.env.robot_cfg
             # cfg.env.robot_cfg["_target_"] = cfg.env.robot_cfg["_target_"].replace("calvin_env", "vr_env")
 
         # Instantiate camera to get projection and view matrices
@@ -369,15 +369,15 @@ def instantiate_test_env(cfg, labeling_mode, new_cfg=True):
         if "tactile" in teleop_cfg.env.cameras:
             teleop_cfg.env.cameras.pop("tactile")
 
-        if new_cfg:
-            env = hydra.utils.instantiate(teleop_cfg.env)
-        else:
-            # Robot cfg is important to get the transformation
-            # between robot and gripper cam
-            # for k, v in cfg.env.robot_cfg.items():
-            #     if k in teleop_cfg.robot:
-            #         cfg.env.robot_cfg[k] = v
-            env = hydra.utils.instantiate(cfg.env)
+        # if new_cfg:
+        #     env = hydra.utils.instantiate(teleop_cfg.env)
+        # else:
+        #     # Robot cfg is important to get the transformation
+        #     # between robot and gripper cam
+        #     # for k, v in cfg.env.robot_cfg.items():
+        #     #     if k in teleop_cfg.robot:
+        #     #         cfg.env.robot_cfg[k] = v
+        #     env = hydra.utils.instantiate(cfg.env)
 
     return static_cam, teleop_cfg
 

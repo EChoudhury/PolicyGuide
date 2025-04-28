@@ -140,11 +140,9 @@ def process_actions(
     if window_size == 0 and seq_idx == 0:  # single file loader
         action = episode[action_key]
         if "actions" in transforms:
-            print("True")
             action = transforms["actions"]((action, episode["robot_obs"]))
         seq_acts = torch.from_numpy(action).float()
     else:  # episode loader
-        print("else")
         seq_acts = torch.from_numpy(episode[action_key][seq_idx : seq_idx + window_size]).float()
     return {"actions": seq_acts}
 

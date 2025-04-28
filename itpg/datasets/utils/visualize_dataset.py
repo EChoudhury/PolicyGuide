@@ -40,7 +40,7 @@ def visualize_dataset(cfg: DictConfig) -> None:
 
     # Create a single OpenCV window
     window_name = "Dataset Visualization"
-    cv2.namedWindow(window_name)
+    # cv2.namedWindow(window_name)
     # images = []
 
     # Iterate through the dataset and visualize the images
@@ -64,6 +64,7 @@ def visualize_dataset(cfg: DictConfig) -> None:
             # img = img.numpy()  # Convert from PyTorch tensor to NumPy array
 
             action = batch["action"]  # Shape: (8,)
+            action_one = batch["action"][0]
             state = batch["observation.state"] # Shape: (8,)
             ann_idx = int(batch["language"][0])
             language = annotations[ann_idx]  # Shape: (sequence_length,)
@@ -74,17 +75,17 @@ def visualize_dataset(cfg: DictConfig) -> None:
             #     img = img.numpy().astype(np.uint8)
 
             # Display the image in the same OpenCV window
-            cv2.imshow(window_name, img)
+            # cv2.imshow(window_name, img)
             # images.append(img)
             print(f"Sample {idx}: \nAction: {action}, \nState: {state}, \nLanguage: {language}\n\n")
 
             # Wait for a short duration or until 'q' is pressed
-            if cv2.waitKey(100) & 0xFF == ord('q'):  # 100ms delay
-                break
+            # if cv2.waitKey(100) & 0xFF == ord('q'):  # 100ms delay
+            #     break
          # save images for gif
         # save_images_and_create_gif(images)
     # Destroy the OpenCV window after visualization
-    cv2.destroyAllWindows()
+    # cv2.destroyAllWindows()
 
 def save_images_and_create_gif(images: List[np.ndarray], save_dir: str = "/home/choudhue/PolicyGuide/viz", gif_name: str = "rollout.gif", fps: int = 30):
     """

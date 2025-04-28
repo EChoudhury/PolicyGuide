@@ -398,7 +398,7 @@ def get_env_state_for_initial_condition(initial_condition):
             scene_obs[0] = 0.28
         if initial_condition["drawer"] == "open":
             scene_obs[1] = 0.22
-        if initial_condition["lightbulb"] == 1:
+        if initial_condition["lightbulb"] == 0:
             scene_obs[3] = 0.088
         scene_obs[4] = initial_condition["lightbulb"]
         scene_obs[5] = initial_condition["led"]

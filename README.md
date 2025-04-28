@@ -65,5 +65,5 @@ python -m itpg.training datamodule.root_data_dir=/path/to/your/calvin/dataset
 ## Evaluation
 Launch default evaluation. While rollout is included in the training policy, here you can evaluate a pretrained policy
 ```bash 
-python -m itpg.evaluation.evaluate_policy --dataset_path /path/to/your/calvin/dataset --train_folder /path/to/saved/model/checkpoint/run/folder --debug
+python -m itpg.evaluation.evaluate_policy --dataset_path /path/to/your/calvin/dataset --train_folder /path/to/saved/model/checkpoint/run/folder --debug --save_viz
 ```

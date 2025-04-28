@@ -279,9 +279,9 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug, sav
                 #         physicsClientId=client_id
                 #     )
                 # time.sleep(0.1)
-            if step == 0:
-                # for tsne plot, only if available
-                collect_plan(model, plans, subtask)
+            # if step == 0:
+            #     # for tsne plot, only if available
+            #     collect_plan(model, plans, subtask)
 
             if step >= 3:
                 if guide is not None:
@@ -385,7 +385,7 @@ def main():
                             epoch, 
                             eval_log_dir=args.eval_log_dir, 
                             debug=args.debug, 
-                            create_plan_tsne=True, 
+                            create_plan_tsne=False, 
                             save_viz=args.save_viz, 
                             viz_folder=args.train_folder, 
                             curr_time=curr_time
