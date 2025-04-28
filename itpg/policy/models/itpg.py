@@ -194,7 +194,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         # Run through diffusion policy
         loss = self.diffusion_policy.forward(batch)
         
-        self.log("train/total_loss", loss, on_step=False, on_epoch=True)
+        self.log("train/loss", loss, on_step=False, on_epoch=True)
 
         return loss
 
@@ -237,13 +237,9 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         # Run inference on diffusion policy
         loss = self.diffusion_policy.forward(batch)
 
-        self.log("valid/valid_loss", loss, on_step=False, on_epoch=True)
+        self.log("valid/loss", loss, on_step=False, on_epoch=True)
 
         return loss
-
-    def validation_epoch_end(self, validation_step_outputs):
-        for i, step in enumerate(validation_step_outputs):
-            self.log(f"val_loss/step_{i}", step)
 
 
     def reset(self):
@@ -293,7 +289,6 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         # print(f"Observation: {converted_obs}")
         action = self.diffusion_policy.run_inference(converted_obs, guide=padded_guide)
         # print(f"\nAction: {action}\n\n")
-
 
         self.rollout_step_counter += 1
         return action, padded_guide

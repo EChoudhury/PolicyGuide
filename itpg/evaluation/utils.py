@@ -396,9 +396,9 @@ def get_env_state_for_initial_condition(initial_condition):
         scene_obs = np.zeros(24)
         if initial_condition["slider"] == "left":
             scene_obs[0] = 0.28
-        if initial_condition["drawer"] == "open":
+        if initial_condition["drawer"] == "closed": #edited
             scene_obs[1] = 0.22
-        if initial_condition["lightbulb"] == 0:
+        if initial_condition["lightbulb"] == 0: #edited
             scene_obs[3] = 0.088
         scene_obs[4] = initial_condition["lightbulb"]
         scene_obs[5] = initial_condition["led"]

@@ -1,4 +1,4 @@
 _target_: pytorch_lightning.loggers.TensorBoardLogger
-save_dir: /home/choudhue/PolicyGuide/results
+save_dir: .
 name: policyguide
 version: ""
