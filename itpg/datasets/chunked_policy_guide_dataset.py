@@ -2,6 +2,7 @@ from typing import Any, Dict
 
 import numpy as np
 from omegaconf import DictConfig
+from itpg.datasets.utils.episode_utils import process_actions, process_rgb, process_state
 from itpg.datasets.utils.robot_replay_buffer import RobotReplayBuffer
 from itpg.datasets.utils.sampler import SequenceSampler
 
@@ -84,7 +85,8 @@ class PolicyGuideDataset(Dataset):
             self._advance_chunk()
             idx = idx % len(self.sampler)  # Adjust index for the new chunk
         sample = self.sampler.sample_sequence(idx)
-        return self._sample_to_data(sample)
+        data = self._get_sequences(sample)
+        return self._sample_to_data(data)
 
     def _sample_to_data(self, sample):
         """Convert a sample to the desired data format."""
@@ -95,3 +97,21 @@ class PolicyGuideDataset(Dataset):
             'language': sample['language'][:1],
         }
         return data
+    
+    def _get_sequences(self, episode) -> Dict:
+        """
+        Load sequence of length window_size.
+
+        Args:
+            idx: Index of starting frame.
+            window_size: Length of sampled episode.
+
+        Returns:
+            dict: Dictionary of tensors of loaded sequence with different input modalities and actions.
+        """
+        seq_state_obs = process_state(episode, self.observation_space, self.transforms, self.proprio_state)
+        seq_rgb_obs = process_rgb(episode, self.observation_space, self.transforms)
+        seq_acts = process_actions(episode, self.observation_space, self.transforms)
+        seq_lang = {"language": episode["language"][:1]}
+        seq_dict = {**seq_state_obs, **seq_rgb_obs, **seq_acts, **seq_lang}
+        return seq_dict
