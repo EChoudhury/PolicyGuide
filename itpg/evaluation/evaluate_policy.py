@@ -224,6 +224,8 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug, sav
     obs_history = None
     if save_viz and debug:
         images = []
+
+    last_action = np.zeros((7))
     for step in tqdm(range(EP_LEN)):
         if obs_history is None:
             # If there is no past observation, use the current observation twice
@@ -231,9 +233,12 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug, sav
                         
         combined_obs = combine_observations(obs_history)
         guide = None
+        
         # action = model.step(combined_obs, lang_annotation)
-        action, guide = model.step(combined_obs, lang_annotation)
+        action, guide = model.step(combined_obs, lang_annotation, last_action)
 
+        # save last action for padding
+        last_action = action[:, -1, :].squeeze().cpu().numpy()
         # trajectory_pts = []
 
         # for i in range(action.shape[1]):
@@ -243,7 +248,7 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug, sav
         #     #     remove_oldest_sphere(action_viz, client_id)
 
         # Visualize the trajectory using the deque of points
-        # cylinder_ids, cylinder_colors = visualize_point_policy(client_id, action[:, :, :3].squeeze())
+        cylinder_ids, cylinder_colors = visualize_point_policy(client_id, action[:, :, :3].squeeze())
         # print(cylinder_ids, cylinder_colors)
         for i in range(action.shape[1]):
             obs, _, _, current_info = env.step(action[:,i,...])
@@ -254,14 +259,14 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug, sav
             if debug:
                 if guide is not None:
                     guide_viz.append(visualize_point(client_id, guide[0], 0))
-                # for cylinder_id, color in zip(cylinder_ids, cylinder_colors):
-                #     # Keep the original RGB values, but set alpha to 1.0 for full opacity
-                #     p.changeVisualShape(
-                #         objectUniqueId=cylinder_id,
-                #         linkIndex=-1,
-                #         rgbaColor=[color[0], color[1], color[2], 1.0],  # Update only the alpha
-                #         physicsClientId=client_id
-                #     )
+                for cylinder_id, color in zip(cylinder_ids, cylinder_colors):
+                    # Keep the original RGB values, but set alpha to 1.0 for full opacity
+                    p.changeVisualShape(
+                        objectUniqueId=cylinder_id,
+                        linkIndex=-1,
+                        rgbaColor=[color[0], color[1], color[2], 1.0],  # Update only the alpha
+                        physicsClientId=client_id
+                    )
                 if save_viz:
                     temp_obs = (obs["rgb_obs"]["rgb_static"][:,0,...] * 255).clamp(0, 255).byte().squeeze()
                     temp_obs = temp_obs.squeeze().permute(1, 2, 0).cpu().numpy()
@@ -270,14 +275,14 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug, sav
                     img = env.render(mode="rgb_array")
                     # print(f"Image shape: {img.shape}")
                     join_vis_lang(img, lang_annotation)
-                # for cylinder_id, color in zip(cylinder_ids, cylinder_colors):
-                #     # Keep the original RGB values, but set alpha to 0.0
-                #     p.changeVisualShape(
-                #         objectUniqueId=cylinder_id,
-                #         linkIndex=-1,
-                #         rgbaColor=[color[0], color[1], color[2], 0.0],  # Update only the alpha
-                #         physicsClientId=client_id
-                #     )
+                for cylinder_id, color in zip(cylinder_ids, cylinder_colors):
+                    # Keep the original RGB values, but set alpha to 0.0
+                    p.changeVisualShape(
+                        objectUniqueId=cylinder_id,
+                        linkIndex=-1,
+                        rgbaColor=[color[0], color[1], color[2], 0.0],  # Update only the alpha
+                        physicsClientId=client_id
+                    )
                 # time.sleep(0.1)
             # if step == 0:
             #     # for tsne plot, only if available
@@ -287,8 +292,8 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug, sav
                 if guide is not None:
                     remove_oldest_sphere(guide_viz, client_id)
 
-        # for cylinder_id in cylinder_ids:
-        #     p.removeBody(cylinder_id, physicsClientId=client_id)
+        for cylinder_id in cylinder_ids:
+            p.removeBody(cylinder_id, physicsClientId=client_id)
 
         # check if current step solves a task
         current_task_info = task_oracle.get_task_info_for_set(start_info, current_info, {subtask})

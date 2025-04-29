@@ -97,26 +97,6 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         static_cam, _ = instantiate_test_env(play_data_cfg, "simulation")
         return static_cam
 
-
-    def _rearrange_batch_imgs(self, batch: Dict[str, Dict]) -> Dict[str, torch.Tensor]:
-        """
-        Convert the batch dictionary into the desired format.
-
-        Args:
-            batch (dict): Input batch dictionary.
-
-        Returns:
-            dict: Converted batch dictionary.
-        """
-        B = batch['observation.state'].shape[0]
-        n_obs_steps = batch['observation.state'].shape[1]  # Number of observation steps
-
-        # Assuming same image size for all cameras
-        H, W, C = batch['observation.image_static'].shape[2:]  # Channels, height, and width of images
-        batch["observation.image_static"] = batch['observation.image_static'].view(B, n_obs_steps, C, H, W)
-        
-        return batch
-    
     def _convert_batch(self, batch: Dict[str, Dict], train=True, infer=False) -> Dict[str, torch.Tensor]:
         """
         Convert the batch dictionary into the desired format.
@@ -141,12 +121,12 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         converted_batch = {
             "observation.state": batch['robot_obs'].view(B, n_obs_steps, state_dim),
             "observation.image_static": batch['rgb_obs']['rgb_static'].view(B, n_obs_steps, C, H, W),
+            "observation.image_wrist": batch['rgb_obs']['rgb_gripper'].view(B, n_obs_steps, C, H, W),
         }
 
         converted_batch["observation.image_static"] = converted_batch["observation.image_static"][:,:self.config.n_obs_steps,...]
+        converted_batch["observation.image_wrist"] = converted_batch["observation.image_wrist"][:,:self.config.n_obs_steps,...]
         converted_batch["observation.state"] = converted_batch["observation.state"][:,:self.config.n_obs_steps,:]
-        # converted_batch["observation.image_static"] = torch.zeros_like(converted_batch["observation.image_static"][:,:self.config.n_obs_steps,...])
-        # converted_batch["observation.state"] = torch.zeros_like(converted_batch["observation.state"][:,:self.config.n_obs_steps,:])
 
         if train:
             action_dim = batch['actions'].shape[-1]
@@ -185,12 +165,9 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         Returns:
             loss tensor
         """
-        # convert observations
-        # converted_obs = self._convert_batch(batch["vis"])
-        # print(batch)
-        # converted_obs = self._rearrange_batch_imgs(batch)
+        # remove language temporarily
         batch.pop("language", None) 
-        # print(batch.keys())
+
         # Run through diffusion policy
         loss = self.diffusion_policy.forward(batch)
         
@@ -228,15 +205,13 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         Returns:
             Dictionary containing losses and the sampled plans of plan recognition and plan proposal networks.
         """
-        # convert observations
-        # converted_obs = self._convert_batch(batch["vis"])
-        # converted_obs = self._rearrange_batch_imgs(batch)
+        # remove language temporarily
         batch.pop("language", None) 
-        # print(batch.keys())
-        # print(batch["observation.state"].shape, batch["observation.image_static"].shape, batch["action"].shape)
-        # Run inference on diffusion policy
+
+        # Run validation on diffusion policy
         loss = self.diffusion_policy.forward(batch)
 
+        # log validation loss
         self.log("valid/loss", loss, on_step=False, on_epoch=True)
 
         return loss
@@ -248,7 +223,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         """
         self.rollout_step_counter = 0
 
-    def step(self, obs, goal):
+    def step(self, obs, goal=None, last_action=None):
         """
         Do one step of inference with the model.
 
@@ -259,36 +234,32 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         Returns:
             Predicted action.
         """
+        # convert observations
         converted_obs = self._convert_batch(obs, train=False, infer=True)
-        # goal = "use the switch to turn on the light bulb"
-        # replan every replan_freq steps (default 30 i.e every second)
-        # TODO: need to pass last action orn & gripper info to guide 
+
+        # temporary hardcoded goal
+        goal = "use the switch to turn on the light bulb"
+
         padded_guide = None
-        # if self.rollout_step_counter % self.replan_freq == 0:
-        #     # Not using language goal for now
-        #     # convert observations
-        #     # Use affordance model to get the guide
-        #     frame = converted_obs["observation.image_static"][:,-1,...].detach().cpu().numpy()
-        #     print(frame.shape)
-        #     print(type(frame))
-        #     print(frame)
-        #     frame = frame.squeeze()
-        #     frame = (frame * 255.0).astype("uint8")
-        #     frame = np.transpose(frame, (1, 2, 0))
-        #     frame = cv2.resize(frame, ([224, 224]))
-        #     if frame.shape[-1] == 1:
-        #         frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
-        #     affordance_obs = {"img": frame, "lang_goal": goal}
-        #     afford_pred = self.affordance_policy.predict(affordance_obs)
-        #     guide = self.camera.deproject_single_depth(afford_pred["pixel"], afford_pred["depth"])
-        #     padded_guide = np.concat((guide, np.array([0, 0, 0, 0]))) #[0, 0, 1.5707963, 1]
-        #     padded_guide = torch.tensor(padded_guide).cuda()
-        #     padded_guide = torch.unsqueeze(padded_guide, 0)
+        # replan every replan_freq steps (default 30 i.e every second)
+        if self.rollout_step_counter % self.replan_freq == 0:
+            # Use affordance model to get the guide
+            frame = converted_obs["observation.image_static"][:,-1,...].detach().cpu().numpy()
+            frame = frame.squeeze()
+            frame = (frame * 255.0).astype("uint8")
+            frame = np.transpose(frame, (1, 2, 0))
+            frame = cv2.resize(frame, ([224, 224]))
+            if frame.shape[-1] == 1:
+                frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
+            affordance_obs = {"img": frame, "lang_goal": goal}
+            afford_pred = self.affordance_policy.predict(affordance_obs)
+            guide = self.camera.deproject_single_depth(afford_pred["pixel"], afford_pred["depth"])
+            padded_guide = np.concat((guide, last_action[3:]))
+            padded_guide = torch.tensor(padded_guide).cuda()
+            padded_guide = torch.unsqueeze(padded_guide, 0)
 
         # Run inference on diffusion policy
-        # print(f"Observation: {converted_obs}")
         action = self.diffusion_policy.run_inference(converted_obs, guide=padded_guide)
-        # print(f"\nAction: {action}\n\n")
 
         self.rollout_step_counter += 1
         return action, padded_guide

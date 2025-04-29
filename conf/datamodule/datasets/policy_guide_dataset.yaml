@@ -10,7 +10,7 @@ n_action_steps: 8
 pad_before: 0
 pad_after: 0
 batch_size: 64
-num_workers: 1
+num_workers: 4
 image_shape: 
   height: 200
   width: 200

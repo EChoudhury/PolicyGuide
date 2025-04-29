@@ -14,14 +14,6 @@ def visualize_dataset(cfg: DictConfig) -> None:
     # Path to the Zarr dataset
     zarr_path = "/home/choudhue/PolicyGuide/dataset/calvin_D_1T_dataset"
 
-    obs_space = {
-        "rgb_obs": ['rgb_static'],
-        "depth_obs": [],
-        "state_obs": ['robot_obs'],
-        "actions": ['actions'],
-        "language": ['language']
-    }
-
     # Initialize the PolicyGuideDataset
     print("Loading dataset...")
     # print(f"Config: {OmegaConf.to_yaml(cfg)}")
@@ -39,8 +31,10 @@ def visualize_dataset(cfg: DictConfig) -> None:
     print(f"Total samples in dataset: {len(dataset)}")
 
     # Create a single OpenCV window
-    window_name = "Dataset Visualization"
-    # cv2.namedWindow(window_name)
+    static_win = "Static Camera"
+    gripper_win = "Gripper Camera"
+    cv2.namedWindow(static_win)
+    cv2.namedWindow(gripper_win)
     # images = []
 
     # Iterate through the dataset and visualize the images
@@ -50,8 +44,9 @@ def visualize_dataset(cfg: DictConfig) -> None:
         for i in range(batch["observation.image_static"].shape[0]):
             # Extract the static image observation
             img = batch["observation.image_static"][i,1, ...] # Shape: (height, width, channels)
+            img_gripper = batch["observation.image_wrist"][i,1, ...] # Shape: (height, width, channels)
             # img = img.permute(1, 2, 0) # Convert from (C, H, W) to (H, W, C)
-            print(img.shape)
+            print(img_gripper.shape)
             # Denormalize the image (reverse the normalization process)
             # mean = [0.5]  # Replace with the actual mean used during normalization
             # std = [0.5]   # Replace with the actual std used during normalization
@@ -61,6 +56,10 @@ def visualize_dataset(cfg: DictConfig) -> None:
             # Convert the image to a format suitable for OpenCV
             img = img.permute(1, 2, 0)  # Convert from (C, H, W) to (H, W, C)
             img = (img * 255).clamp(0, 255).byte().cpu().numpy().astype(np.uint8) # Scale to [0, 255] and convert to uint8
+
+            # Convert the image to a format suitable for OpenCV
+            img_gripper = img_gripper.permute(1, 2, 0)  # Convert from (C, H, W) to (H, W, C)
+            img_gripper = (img_gripper * 255).clamp(0, 255).byte().cpu().numpy().astype(np.uint8) # Scale to [0, 255] and convert to uint8
             # img = img.numpy()  # Convert from PyTorch tensor to NumPy array
 
             action = batch["action"]  # Shape: (8,)
@@ -75,13 +74,14 @@ def visualize_dataset(cfg: DictConfig) -> None:
             #     img = img.numpy().astype(np.uint8)
 
             # Display the image in the same OpenCV window
-            # cv2.imshow(window_name, img)
+            cv2.imshow(static_win, img)
+            cv2.imshow(gripper_win, img_gripper)
             # images.append(img)
             print(f"Sample {idx}: \nAction: {action}, \nState: {state}, \nLanguage: {language}\n\n")
 
             # Wait for a short duration or until 'q' is pressed
-            # if cv2.waitKey(100) & 0xFF == ord('q'):  # 100ms delay
-            #     break
+            if cv2.waitKey(100) & 0xFF == ord('q'):  # 100ms delay
+                break
          # save images for gif
         # save_images_and_create_gif(images)
     # Destroy the OpenCV window after visualization

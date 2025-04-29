@@ -100,7 +100,7 @@ class PolicyGuideDataset(Dataset):
             # Image: B, 200, 200, 3
             'observation.image_static': sample['rgb_obs']["rgb_static"][:self.n_obs_steps,:], 
             # Image: B, 84, 84, 3
-            # 'observation.image_wrist': sample['rgb_obs']["rgb_gripper"][:self.n_obs_steps,:], 
+            'observation.image_wrist': sample['rgb_obs']["rgb_gripper"][:self.n_obs_steps,:], 
             # State: B, 8
             'observation.state': sample['robot_obs'][:self.n_obs_steps,:],
             # Actions: B, 8

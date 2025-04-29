@@ -47,7 +47,7 @@ class PolicyGuideDataModule(pl.LightningDataModule):
     def setup(self, stage=None):
         print("Loading Data...╰( ͡° ͜ʖ ͡°)つ──☆*:・ﾟ")
         transforms = load_dataset_statistics(self.training_dir, self.val_dir, self.transforms)
-        print(transforms)
+
         # Load and instantiate transforms
         train_transforms = {
             cam: [hydra.utils.instantiate(transform) for transform in transforms.train[cam]]
