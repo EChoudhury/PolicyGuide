@@ -1,8 +1,9 @@
+import argparse
 import os
 from pathlib import Path
 from typing import List
 import cv2
-import imageio
+import imageio.v2 as imageio
 import numpy as np
 from itpg.datasets.policy_guide_dataset import PolicyGuideDataset
 from itpg.datasets.policy_guide_data_module import PolicyGuideDataModule
@@ -10,9 +11,9 @@ from omegaconf import OmegaConf, DictConfig
 import hydra
 
 @hydra.main(config_path="/home/choudhue/PolicyGuide/conf/datamodule", config_name="default")
-def visualize_dataset(cfg: DictConfig) -> None:
+def visualize_dataset(cfg: DictConfig, gui=False) -> None:
     # Path to the Zarr dataset
-    zarr_path = "/home/choudhue/PolicyGuide/dataset/calvin_D_1T_dataset"
+    zarr_path = "/home/choudhue/PolicyGuide/dataset/calvin_debug_allT_dataset"
 
     # Initialize the PolicyGuideDataset
     print("Loading dataset...")
@@ -33,9 +34,12 @@ def visualize_dataset(cfg: DictConfig) -> None:
     # Create a single OpenCV window
     static_win = "Static Camera"
     gripper_win = "Gripper Camera"
-    cv2.namedWindow(static_win)
-    cv2.namedWindow(gripper_win)
-    # images = []
+    if gui:
+        cv2.namedWindow(static_win)
+        cv2.namedWindow(gripper_win)
+    else:
+        images = []
+        gif_name = ""
 
     # Iterate through the dataset and visualize the images
     for idx, batch in enumerate(dataset):
@@ -46,7 +50,7 @@ def visualize_dataset(cfg: DictConfig) -> None:
             img = batch["observation.image_static"][i,1, ...] # Shape: (height, width, channels)
             img_gripper = batch["observation.image_wrist"][i,1, ...] # Shape: (height, width, channels)
             # img = img.permute(1, 2, 0) # Convert from (C, H, W) to (H, W, C)
-            print(img_gripper.shape)
+            # print(img_gripper.shape)
             # Denormalize the image (reverse the normalization process)
             # mean = [0.5]  # Replace with the actual mean used during normalization
             # std = [0.5]   # Replace with the actual std used during normalization
@@ -74,18 +78,26 @@ def visualize_dataset(cfg: DictConfig) -> None:
             #     img = img.numpy().astype(np.uint8)
 
             # Display the image in the same OpenCV window
-            cv2.imshow(static_win, img)
-            cv2.imshow(gripper_win, img_gripper)
-            # images.append(img)
-            print(f"Sample {idx}: \nAction: {action}, \nState: {state}, \nLanguage: {language}\n\n")
+            if gui:
+                cv2.imshow(static_win, img)
+                cv2.imshow(gripper_win, img_gripper)
+            else:
+                images.append(img)
 
+            # Raw Data  
+            # print(f"Sample {idx}: \nAction: {action}, \nState: {state}, \nLanguage: {language}\n\n")
+            gif_name = language
             # Wait for a short duration or until 'q' is pressed
-            if cv2.waitKey(100) & 0xFF == ord('q'):  # 100ms delay
-                break
-         # save images for gif
-        # save_images_and_create_gif(images)
+            if gui:
+                if cv2.waitKey(100) & 0xFF == ord('q'):  # 100ms delay
+                    break
+        # save images for gif
+        if not gui:
+            save_images_and_create_gif(images, gif_name=f"{gif_name}_{idx}.gif")
+            images = []
     # Destroy the OpenCV window after visualization
-    # cv2.destroyAllWindows()
+    if gui:
+        cv2.destroyAllWindows()
 
 def save_images_and_create_gif(images: List[np.ndarray], save_dir: str = "/home/choudhue/PolicyGuide/viz", gif_name: str = "rollout.gif", fps: int = 30):
     """
@@ -113,7 +125,13 @@ def save_images_and_create_gif(images: List[np.ndarray], save_dir: str = "/home/
         for img_path in image_paths:
             writer.append_data(imageio.imread(img_path))
 
+    for img_path in image_paths:
+        os.remove(img_path)
+
     print(f"GIF saved at {gif_path}")
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--gui", help="Visualize using gui, otherwise save visualization as gif.", action=argparse.BooleanOptionalAction)
+    args = parser.parse_args()
     visualize_dataset()

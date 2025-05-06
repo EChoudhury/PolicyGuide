@@ -3,16 +3,19 @@ import os
 from pathlib import Path
 from typing import Dict, List, Optional
 
+import torch
+
 import itpg
 import hydra
 import numpy as np
 from omegaconf import DictConfig, OmegaConf
 import pytorch_lightning as pl
 from pytorch_lightning.trainer.supporters import CombinedLoader
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, get_worker_info
 import torchvision
 
 from itpg.datasets.policy_guide_dataset import PolicyGuideDataset
+from itpg.datasets.chunked_policy_guide_dataset import ChunkedPolicyGuideDataset
 from itpg.datasets.utils.episode_utils import load_dataset_statistics
 
 logger = logging.getLogger(__name__)
@@ -76,8 +79,7 @@ class PolicyGuideDataModule(pl.LightningDataModule):
                 batch_size=self.datasets_cfg.batch_size,
                 num_workers=self.datasets_cfg.num_workers,
                 pin_memory=False,
-                prefetch_factor=2,
-                shuffle=True,
+                shuffle=False,
             )
 
     def val_dataloader(self):
@@ -86,6 +88,5 @@ class PolicyGuideDataModule(pl.LightningDataModule):
                 batch_size=self.datasets_cfg.batch_size,
                 num_workers=self.datasets_cfg.num_workers,
                 pin_memory=False,
-                prefetch_factor=2,
-                shuffle=True,
+                shuffle=False,
             )

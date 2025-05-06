@@ -203,39 +203,39 @@ def make_dataset(load_path, save_dir, step_len, multi_dir=False):
 
     skill_list = [
         "open_drawer",
-        # "move_slider_left",
-        # "lift_pink_block_table",
-        # "push_pink_block_right",
-        # "close_drawer",
+        "move_slider_left",
+        "lift_pink_block_table",
+        "push_pink_block_right",
+        "close_drawer",
         "turn_on_lightbulb",
-        # "turn_off_lightbulb",
-        # "move_slider_right",
+        "turn_off_lightbulb",
+        "move_slider_right",
         "turn_on_led",
-        # "turn_off_led",
-        # "lift_blue_block_drawer",
-        # "lift_red_block_drawer",
-        # "lift_pink_block_drawer",
-        # "lift_blue_block_table",
-        # "lift_red_block_table",
-        # "lift_blue_block_slider",
-        # "lift_red_block_slider",
-        # "lift_pink_block_slider",
-        # "push_blue_block_left",
-        # "push_red_block_left",
-        # "push_pink_block_left",
-        # "push_blue_block_right",
-        # "push_red_block_right",
-        # "rotate_red_block_right",
-        # "rotate_red_block_left",
-        # "rotate_blue_block_right",
-        # "rotate_blue_block_left",
-        # "rotate_pink_block_right",
-        # "rotate_pink_block_left",
-        # "place_in_slider",
-        # "place_in_drawer",
-        # "stack_block",
-        # "unstack_block",
-        # "push_into_drawer",
+        "turn_off_led",
+        "lift_blue_block_drawer",
+        "lift_red_block_drawer",
+        "lift_pink_block_drawer",
+        "lift_blue_block_table",
+        "lift_red_block_table",
+        "lift_blue_block_slider",
+        "lift_red_block_slider",
+        "lift_pink_block_slider",
+        "push_blue_block_left",
+        "push_red_block_left",
+        "push_pink_block_left",
+        "push_blue_block_right",
+        "push_red_block_right",
+        "rotate_red_block_right",
+        "rotate_red_block_left",
+        "rotate_blue_block_right",
+        "rotate_blue_block_left",
+        "rotate_pink_block_right",
+        "rotate_pink_block_left",
+        "place_in_slider",
+        "place_in_drawer",
+        "stack_block",
+        "unstack_block",
+        "push_into_drawer",
     ]
     data_to_extract = [
         "robot_obs",
@@ -245,6 +245,16 @@ def make_dataset(load_path, save_dir, step_len, multi_dir=False):
         "rgb_gripper",
         "language",
     ]
+
+    # Define the desired chunk sizes
+    desired_chunks = {
+        "robot_obs": (76, 15),  # Example: 76 time steps, 15 features
+        "rgb_static": (76, 200, 200, 3),  # Example: 76 time steps, 200x200 RGB images
+        "rgb_gripper": (76, 84, 84, 3),  # Example: 76 time steps, 84x84 RGB images
+        "actions": (76, 7),  # Example: 76 time steps, 7 action features
+        "language": (76,),  # Example: 76 time steps, single language annotation
+        "episode_step": (76,),  # Example: 76 time steps
+    }
 
     info = {
         "date": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
@@ -275,7 +285,7 @@ def make_dataset(load_path, save_dir, step_len, multi_dir=False):
             
             episode_dict = generate_episode_dict(episode, extractor.annotations_idx[idx])
 
-            extractor.replay_buffer.add_episode_from_list(episode_dict, compressors="disk")
+            extractor.replay_buffer.add_episode_from_list(episode_dict, chunks=desired_chunks, compressors="disk")
             # print(f"Saving episode for {skill}...")
             # np.savez(
             #     os.path.join(save_dir, f"{skill}.npz"),
@@ -285,7 +295,7 @@ def make_dataset(load_path, save_dir, step_len, multi_dir=False):
             #     rgb_statics=rgb_statics,
             #     rgb_grippers=rgb_grippers,
             # )
-    
+
     path = os.path.join(save_dir, "info.json")
     if not os.path.isfile(path):
         with open(path, 'w') as f:
