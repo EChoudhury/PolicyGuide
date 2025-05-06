@@ -98,13 +98,13 @@ def plot_loss_from_tensorboard(directory):
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig('train_valid_loss.png')
-    plt.show()
+    plt.savefig(os.path.join(directory, 'train_valid_loss.png'))
+    # plt.show()
     print("Plot saved as 'train_valid_loss.png'")
 
 if __name__ == "__main__":
     # Specify the directory containing TensorBoard event files
-    tensorboard_dir = "/home/choudhue/PolicyGuide/results/policyguide"
+    tensorboard_dir = "/home/choudhue/PolicyGuide/results/runs/2025-04-29/16-08-48/tensorboard_data"
     
     # Inspect TensorBoard files
     # inspect_tensorboard_files(tensorboard_dir)

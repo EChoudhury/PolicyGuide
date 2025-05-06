@@ -374,7 +374,7 @@ def main():
             checkpoints = get_all_checkpoints(Path(args.train_folder))[-args.last_k_checkpoints :]
         elif args.checkpoint is not None:
             checkpoints = [Path(args.checkpoint)]
-
+        print(checkpoints)
         env = None
         for checkpoint in checkpoints:
             epoch = get_epoch(checkpoint)
