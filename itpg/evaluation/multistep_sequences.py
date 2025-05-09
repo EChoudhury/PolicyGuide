@@ -258,6 +258,18 @@ tasks = {
     ],
 }
 
+# task_categories = {
+#     "open_drawer": 0,
+#     "turn_on_lightbulb": 1,
+#     "turn_on_led": 1,
+# }
+
+# tasks = {
+#     "open_drawer": [{"condition": {"drawer": "closed", "grasped": 0}, "effect": {"drawer": "open"}}],
+#     "turn_on_lightbulb": [{"condition": {"lightbulb": 0, "grasped": 0}, "effect": {"lightbulb": 1}}],
+#     "turn_on_led": [{"condition": {"led": 0, "grasped": 0}, "effect": {"led": 1}}],
+# }
+
 
 def check_condition(state, condition):
     for k, v in condition.items():

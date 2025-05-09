@@ -79,7 +79,7 @@ class PolicyGuideDataModule(pl.LightningDataModule):
                 batch_size=self.datasets_cfg.batch_size,
                 num_workers=self.datasets_cfg.num_workers,
                 pin_memory=False,
-                shuffle=False,
+                shuffle=True,
             )
 
     def val_dataloader(self):
@@ -88,5 +88,5 @@ class PolicyGuideDataModule(pl.LightningDataModule):
                 batch_size=self.datasets_cfg.batch_size,
                 num_workers=self.datasets_cfg.num_workers,
                 pin_memory=False,
-                shuffle=False,
+                shuffle=True,
             )

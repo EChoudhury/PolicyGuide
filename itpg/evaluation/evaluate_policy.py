@@ -93,6 +93,31 @@ def save_images_and_create_gif(images: List[np.ndarray], save_dir: str, gif_name
     print(f"GIF saved at {gif_path}")
 
 
+def combine_gifs(folder_path: str, output_gif_name: str = "combined_sequences.gif", fps: int = 30):
+    """
+    Combine multiple GIFs into a single GIF.
+
+    Args:
+        folder_path (str): Path to the folder containing the GIFs.
+        output_gif_name (str): Name of the output combined GIF file.
+        fps (int): Frames per second for the combined GIF.
+    """
+    gif_files = sorted(Path(folder_path).glob("*.gif"))
+    images = []
+
+    for gif_file in gif_files:
+        with imageio.get_reader(gif_file) as reader:
+            for frame in reader:
+                images.append(frame)
+
+    output_gif_path = Path(folder_path) / output_gif_name
+    with imageio.get_writer(output_gif_path, mode="I", fps=fps) as writer:
+        for img in images:
+            writer.append_data(img)
+
+    print(f"Combined GIF saved at {output_gif_path}")
+
+
 class CustomModel(CalvinBaseModel):
     def __init__(self):
         logger.warning("Please implement these methods as an interface to your custom model architecture.")
@@ -131,14 +156,21 @@ def evaluate_policy(model, env, epoch, eval_log_dir=None, debug=False, create_pl
         Dictionary with results
     """
     conf_dir = Path(__file__).absolute().parents[2] / "conf"
-    task_cfg = OmegaConf.load(conf_dir / "callbacks/rollout/tasks/new_playtable_tasks.yaml")
+    # task_cfg = OmegaConf.load(conf_dir / "callbacks/rollout/tasks/new_playtable_tasks.yaml")
+    task_cfg = OmegaConf.load(conf_dir / "callbacks/rollout/tasks/calvin_D_3T_tasks.yaml")
     task_oracle = hydra.utils.instantiate(task_cfg)
-    val_annotations = OmegaConf.load(conf_dir / "annotations/new_playtable_validation.yaml")
+    # val_annotations = OmegaConf.load(conf_dir / "annotations/new_playtable_validation.yaml")
+    val_annotations = OmegaConf.load(conf_dir / "annotations/calvin_D_3T_validation.yaml")
 
     eval_log_dir = get_log_dir(eval_log_dir)
 
-    eval_sequences = get_sequences(NUM_SEQUENCES)
+    # eval_sequences = get_sequences(NUM_SEQUENCES)
 
+    # Temporary hardcoded sequences for testing
+    eval_sequences = [({'led': 0, 'lightbulb': 0, 'slider': 'left', 'drawer': 'closed', 'red_block': 'table', 'blue_block': 'slider_right', 'pink_block': 'slider_left', 'grasped': 0}, (('turn_on_lightbulb', 'open_drawer', 'turn_on_led'))),
+                      ({'led': 0, 'lightbulb': 0, 'slider': 'right', 'drawer': 'closed', 'red_block': 'slider_right', 'blue_block': 'slider_left', 'pink_block': 'table', 'grasped': 0}, (('open_drawer', 'turn_on_led', 'turn_on_lightbulb'))),
+                      ({'led': 0, 'lightbulb': 0, 'slider': 'right', 'drawer': 'closed', 'red_block': 'table', 'blue_block': 'slider_left', 'pink_block': 'table', 'grasped': 0}, (('turn_on_led', 'turn_on_lightbulb', 'open_drawer')))]
+    
     results = []
     plans = defaultdict(list)
 
@@ -174,7 +206,7 @@ def evaluate_sequence(env, model, task_checker, initial_state, eval_sequence, va
         print()
         print()
         print(f"Evaluating sequence: {' -> '.join(eval_sequence)}")
-        print("Subtask: ", end="")
+        print("Subtask: ")
     for subtask in eval_sequence:
         success = rollout(env, model, task_checker, subtask, val_annotations, plans, debug, save_viz, viz_folder, curr_time)
         if success:
@@ -198,7 +230,7 @@ def combine_observations(observations: List[Dict[str, torch.Tensor]]) -> Dict[st
 
     merged['robot_obs'] = torch.cat([obs['robot_obs'] for obs in observations], dim=1)
     merged['rgb_obs']['rgb_static'] = torch.cat([obs['rgb_obs']['rgb_static'] for obs in observations], dim=1)
-
+    merged['rgb_obs']['rgb_gripper'] = torch.cat([obs['rgb_obs']['rgb_gripper'] for obs in observations], dim=1)
     # print(f"Robot_obs shape: {merged['robot_obs'].shape}")
     # print(f"Image Shape {merged['rgb_obs']['rgb_static'].shape}")
 
@@ -210,7 +242,7 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug, sav
     Run the actual rollout on one subtask (which is one natural language instruction).
     """
     if debug:
-        print(f"{subtask} ", end="")
+        print(f"{subtask}")
         time.sleep(0.5)
     obs = env.get_obs()
     guide_viz = deque()
@@ -248,8 +280,13 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug, sav
         #     #     remove_oldest_sphere(action_viz, client_id)
 
         # Visualize the trajectory using the deque of points
-        cylinder_ids, cylinder_colors = visualize_point_policy(client_id, action[:, :, :3].squeeze())
+        # cylinder_ids, cylinder_colors = visualize_point_policy(client_id, action[:, :, :3].squeeze())
         # print(cylinder_ids, cylinder_colors)
+
+        # if debug:
+        #     if guide is not None:
+        #         guide_viz.append(visualize_point(client_id, guide[0], 7))
+
         for i in range(action.shape[1]):
             obs, _, _, current_info = env.step(action[:,i,...])
             # print(f'Observation: {obs["rgb_obs"]["rgb_static"].shape},\n') #Action: {action[:,i,...]}\n\n")
@@ -257,16 +294,14 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug, sav
             obs_history.append(obs)        
 
             if debug:
-                if guide is not None:
-                    guide_viz.append(visualize_point(client_id, guide[0], 0))
-                for cylinder_id, color in zip(cylinder_ids, cylinder_colors):
-                    # Keep the original RGB values, but set alpha to 1.0 for full opacity
-                    p.changeVisualShape(
-                        objectUniqueId=cylinder_id,
-                        linkIndex=-1,
-                        rgbaColor=[color[0], color[1], color[2], 1.0],  # Update only the alpha
-                        physicsClientId=client_id
-                    )
+                # for cylinder_id, color in zip(cylinder_ids, cylinder_colors):
+                #     # Keep the original RGB values, but set alpha to 1.0 for full opacity
+                #     p.changeVisualShape(
+                #         objectUniqueId=cylinder_id,
+                #         linkIndex=-1,
+                #         rgbaColor=[color[0], color[1], color[2], 1.0],  # Update only the alpha
+                #         physicsClientId=client_id
+                #     )
                 if save_viz:
                     temp_obs = (obs["rgb_obs"]["rgb_static"][:,0,...] * 255).clamp(0, 255).byte().squeeze()
                     temp_obs = temp_obs.squeeze().permute(1, 2, 0).cpu().numpy()
@@ -275,38 +310,48 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug, sav
                     img = env.render(mode="rgb_array")
                     # print(f"Image shape: {img.shape}")
                     join_vis_lang(img, lang_annotation)
-                for cylinder_id, color in zip(cylinder_ids, cylinder_colors):
-                    # Keep the original RGB values, but set alpha to 0.0
-                    p.changeVisualShape(
-                        objectUniqueId=cylinder_id,
-                        linkIndex=-1,
-                        rgbaColor=[color[0], color[1], color[2], 0.0],  # Update only the alpha
-                        physicsClientId=client_id
-                    )
+                # for cylinder_id, color in zip(cylinder_ids, cylinder_colors):
+                #     # Keep the original RGB values, but set alpha to 0.0
+                #     p.changeVisualShape(
+                #         objectUniqueId=cylinder_id,
+                #         linkIndex=-1,
+                #         rgbaColor=[color[0], color[1], color[2], 0.0],  # Update only the alpha
+                #         physicsClientId=client_id
+                #     )
                 # time.sleep(0.1)
             # if step == 0:
             #     # for tsne plot, only if available
             #     collect_plan(model, plans, subtask)
 
-            if step >= 3:
-                if guide is not None:
-                    remove_oldest_sphere(guide_viz, client_id)
+            # if step >= 10:
+            #     if guide is not None:
+            #         remove_oldest_sphere(guide_viz, client_id)
 
-        for cylinder_id in cylinder_ids:
-            p.removeBody(cylinder_id, physicsClientId=client_id)
+        if guide is not None and guide_viz:
+            remove_oldest_sphere(guide_viz, client_id)
+
+        # for cylinder_id in cylinder_ids:
+        #     p.removeBody(cylinder_id, physicsClientId=client_id)
 
         # check if current step solves a task
         current_task_info = task_oracle.get_task_info_for_set(start_info, current_info, {subtask})
         if len(current_task_info) > 0:
             if debug:
                 print(colored("task success", "green"), end=" \n")
+                if save_viz:
+                    # save images for gif
+                    save_dir = os.path.join(viz_folder, f"eval_viz_{curr_time}")
+                    sequence_time = time.strftime("%Y%m%d_%H%M%S")
+                    gif_name = f"{sequence_time}_rollout_{subtask}_success.gif"
+                    save_images_and_create_gif(images, save_dir, gif_name)
             return True
     if debug:
         print(colored("task failed", "red"), end=" \n")
         if save_viz:
             # save images for gif
             save_dir = os.path.join(viz_folder, f"eval_viz_{curr_time}")
-            gif_name = f"rollout_{subtask}.gif"
+            sequence_time = time.strftime("%Y%m%d_%H%M%S")
+            gif_name = f"{sequence_time}_rollout_{subtask}_fail.gif"
             save_images_and_create_gif(images, save_dir, gif_name)
     return False
 
