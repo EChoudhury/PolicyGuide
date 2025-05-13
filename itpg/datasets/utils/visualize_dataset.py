@@ -9,11 +9,12 @@ from itpg.datasets.policy_guide_dataset import PolicyGuideDataset
 from itpg.datasets.policy_guide_data_module import PolicyGuideDataModule
 from omegaconf import OmegaConf, DictConfig
 import hydra
+import time
 
 @hydra.main(config_path="/home/choudhue/PolicyGuide/conf/datamodule", config_name="default")
-def visualize_dataset(cfg: DictConfig, gui=False) -> None:
+def visualize_dataset(cfg: DictConfig, gui=True) -> None:
     # Path to the Zarr dataset
-    zarr_path = "/home/choudhue/PolicyGuide/dataset/calvin_debug_allT_dataset"
+    zarr_path = "/home/choudhue/PolicyGuide/dataset/calvin_D_fullT_dataset"
 
     # Initialize the PolicyGuideDataset
     print("Loading dataset...")
@@ -34,72 +35,75 @@ def visualize_dataset(cfg: DictConfig, gui=False) -> None:
     # Create a single OpenCV window
     static_win = "Static Camera"
     gripper_win = "Gripper Camera"
-    if gui:
-        cv2.namedWindow(static_win)
-        cv2.namedWindow(gripper_win)
-    else:
-        images = []
-        gif_name = ""
+    # if gui:
+    #     cv2.namedWindow(static_win)
+    #     cv2.namedWindow(gripper_win)
+    # else:
+    #     images = []
+    #     labels = []
+    #     gif_name = ""
 
     # Iterate through the dataset and visualize the images
     for idx, batch in enumerate(dataset):
+        # start_time = time.time()
         if idx == 0:
             print(f"Batch Keys: {batch.keys()}")
         for i in range(batch["observation.image_static"].shape[0]):
             # Extract the static image observation
-            img = batch["observation.image_static"][i,1, ...] # Shape: (height, width, channels)
+            img = batch["observation.image_static"][i,0, ...] # Shape: (height, width, channels)
+            img2 = batch["observation.image_static"][i,1, ...] 
             img_gripper = batch["observation.image_wrist"][i,1, ...] # Shape: (height, width, channels)
-            # img = img.permute(1, 2, 0) # Convert from (C, H, W) to (H, W, C)
-            # print(img_gripper.shape)
-            # Denormalize the image (reverse the normalization process)
-            # mean = [0.5]  # Replace with the actual mean used during normalization
-            # std = [0.5]   # Replace with the actual std used during normalization
-            # for c in range(img.shape[0]):  # Iterate over channels
-            #     img[c, :, :] = img[c, :, :] * std[0] + mean[0]
 
-            # Convert the image to a format suitable for OpenCV
-            img = img.permute(1, 2, 0)  # Convert from (C, H, W) to (H, W, C)
-            img = (img * 255).clamp(0, 255).byte().cpu().numpy().astype(np.uint8) # Scale to [0, 255] and convert to uint8
+            # # Convert the image to a format suitable for OpenCV
+            # img = img.permute(1, 2, 0)  # Convert from (C, H, W) to (H, W, C)
+            # img = (img * 255).clamp(0, 255).byte().cpu().numpy().astype(np.uint8) # Scale to [0, 255] and convert to uint8
 
-            # Convert the image to a format suitable for OpenCV
-            img_gripper = img_gripper.permute(1, 2, 0)  # Convert from (C, H, W) to (H, W, C)
-            img_gripper = (img_gripper * 255).clamp(0, 255).byte().cpu().numpy().astype(np.uint8) # Scale to [0, 255] and convert to uint8
-            # img = img.numpy()  # Convert from PyTorch tensor to NumPy array
+            # img2 = img2.permute(1, 2, 0)  # Convert from (C, H, W) to (H, W, C)
+            # img2 = (img2 * 255).clamp(0, 255).byte().cpu().numpy().astype(np.uint8) # Scale to [0, 255] and convert to uint8
+
+            # # Convert the image to a format suitable for OpenCV
+            # img_gripper = img_gripper.permute(1, 2, 0)  # Convert from (C, H, W) to (H, W, C)
+            # img_gripper = (img_gripper * 255).clamp(0, 255).byte().cpu().numpy().astype(np.uint8) # Scale to [0, 255] and convert to uint8
 
             action = batch["action"]  # Shape: (8,)
             action_one = batch["action"][0]
             state = batch["observation.state"] # Shape: (8,)
             ann_idx = int(batch["language"][0])
-            language = annotations[ann_idx]  # Shape: (sequence_length,)
-            # Convert the image to a format suitable for OpenCV (if needed)
-            # if isinstance(img, np.ndarray):
-            #     img = img.astype(np.uint8)  # Ensure the image is in uint8 format
-            # elif hasattr(img, "numpy"):  # If it's a PyTorch tensor
-            #     img = img.numpy().astype(np.uint8)
+            language = annotations[ann_idx] # Shape: (sequence_length,)
 
             # Display the image in the same OpenCV window
-            if gui:
-                cv2.imshow(static_win, img)
-                cv2.imshow(gripper_win, img_gripper)
-            else:
-                images.append(img)
-
+            # if gui:
+            #     cv2.imshow(static_win, img)
+            #     cv2.imshow(gripper_win, img_gripper)
+            # else:
+            #     images.append(img)
+            #     labels.append(language + "_1")
+            #     images.append(img2)
+            #     labels.append(language + "_2")
             # Raw Data  
             # print(f"Sample {idx}: \nAction: {action}, \nState: {state}, \nLanguage: {language}\n\n")
+            # gif_name = f"{idx}_{i}"
             gif_name = language
+            
             # Wait for a short duration or until 'q' is pressed
             if gui:
                 if cv2.waitKey(100) & 0xFF == ord('q'):  # 100ms delay
                     break
         # save images for gif
+        print(f"{gif_name}_{idx}")
         if not gui:
             save_images_and_create_gif(images, gif_name=f"{gif_name}_{idx}.gif")
             images = []
+            labels = []
+
+        # end_time = time.time()  # End the timer for this iteration
+        # iteration_time = end_time - start_time  # Calculate the duration
+        # print(f"Iteration {idx} : {iteration_time:.2f} seconds")
     # Destroy the OpenCV window after visualization
     if gui:
         cv2.destroyAllWindows()
 
-def save_images_and_create_gif(images: List[np.ndarray], save_dir: str = "/home/choudhue/PolicyGuide/viz", gif_name: str = "rollout.gif", fps: int = 30):
+def save_images_and_create_gif(images: List[np.ndarray], save_dir: str = "/home/choudhue/PolicyGuide/viz", gif_name: str = "rollout.gif", fps: int = 30, lang=None):
     """
     Save images from observations and create a GIF.
 
@@ -115,7 +119,10 @@ def save_images_and_create_gif(images: List[np.ndarray], save_dir: str = "/home/
     # Save individual images
     image_paths = []
     for idx, img in enumerate(images):
-        img_path = save_path / f"frame_{idx:04d}.png"
+        if lang is None:
+            img_path = save_path / f"frame_{idx:04d}.png"
+        else:
+            img_path = save_path / f"frame_{idx:04d}_{lang[idx]}.png"
         imageio.imwrite(img_path, img)
         image_paths.append(img_path)
 

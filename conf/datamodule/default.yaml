@@ -5,6 +5,6 @@ defaults:
   - observation_space: lang_rgb_static_gripper_abs_act
 _target_: itpg.datasets.policy_guide_data_module.PolicyGuideDataModule
 _recursive_: false
-root_data_dir: "/home/choudhue/PolicyGuide/dataset/calvin_D_1T_dataset"
+root_data_dir: "/home/choudhue/PolicyGuide/dataset/calvin_D_fullT_dataset"
 shuffle_val: false
 lang_folder: "lang_annotations"

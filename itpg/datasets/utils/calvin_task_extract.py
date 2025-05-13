@@ -110,7 +110,7 @@ class CALVINSkillExtractor:
         """
         info_indx = self.episode_lookup[idx]
         start_file_indx = info_indx[0]
-        end_file_indx = info_indx[1] + 32
+        end_file_indx = info_indx[1] #+ 32
 
         lang_annotation = self.annotations_idx[idx]
 
@@ -248,12 +248,12 @@ def make_dataset(load_path, save_dir, step_len, multi_dir=False):
 
     # Define the desired chunk sizes
     desired_chunks = {
-        "robot_obs": (76, 15),  # Example: 76 time steps, 15 features
-        "rgb_static": (76, 200, 200, 3),  # Example: 76 time steps, 200x200 RGB images
-        "rgb_gripper": (76, 84, 84, 3),  # Example: 76 time steps, 84x84 RGB images
-        "actions": (76, 7),  # Example: 76 time steps, 7 action features
-        "language": (76,),  # Example: 76 time steps, single language annotation
-        "episode_step": (76,),  # Example: 76 time steps
+        "robot_obs": (65, 15),  # Example: 76 time steps, 15 features
+        "rgb_static": (65, 200, 200, 3),  # Example: 76 time steps, 200x200 RGB images
+        "rgb_gripper": (65, 84, 84, 3),  # Example: 76 time steps, 84x84 RGB images
+        "actions": (65, 7),  # Example: 76 time steps, 7 action features
+        "language": (65,),  # Example: 76 time steps, single language annotation
+        "episode_step": (65,),  # Example: 76 time steps
     }
 
     info = {
@@ -285,7 +285,7 @@ def make_dataset(load_path, save_dir, step_len, multi_dir=False):
             
             episode_dict = generate_episode_dict(episode, extractor.annotations_idx[idx])
 
-            extractor.replay_buffer.add_episode_from_list(episode_dict, chunks=desired_chunks, compressors="disk")
+            extractor.replay_buffer.add_episode_from_list(episode_dict, chunks=desired_chunks, compressors="disk") 
             # print(f"Saving episode for {skill}...")
             # np.savez(
             #     os.path.join(save_dir, f"{skill}.npz"),
@@ -315,7 +315,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--save_dir",
         type=str,
-        default="/home/choudhue/PolicyGuide/dataset/calvin_D_3T_dataset",
+        default="/home/choudhue/PolicyGuide/dataset/calvin_D_fullT_chunked_dataset",
     )
     parser.add_argument("--step_len", type=int, default=1)
     parser.add_argument("--full", help="Use this flag to load both training and validation data.", action=argparse.BooleanOptionalAction)

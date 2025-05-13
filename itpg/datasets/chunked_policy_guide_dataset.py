@@ -27,8 +27,8 @@ class ChunkedPolicyGuideDataset(IterableDataset):
                 n_action_steps: int = 8,
                 pad_before: int = 0,
                 pad_after: int = 0,
-                chunk_size: int = 1,
-                episode_length: int = 76,
+                chunk_size: int = 256,
+                episode_length: int = 60,
                 *args: Any,
                 **kwargs: Any,):
         
@@ -60,12 +60,12 @@ class ChunkedPolicyGuideDataset(IterableDataset):
         self.chunk_size = chunk_size
 
         # Load the replay buffer metadata
-        self.replay_buffer = RobotReplayBuffer.copy_from_path(self.datasets_dir, self.keys, mode='r')
+        self.replay_buffer = RobotReplayBuffer.create_from_path(self.datasets_dir, mode='r')
         self.total_size = len(self.replay_buffer.episode_ends)
-        print(self.total_size)
+        # print(f'Total Size: {self.total_size}')
 
     def __len__(self):
-        print(f'__len__: {self.total_size * self.episode_length}')
+        # print(f'__len__: {self.total_size}')
         return self.total_size * self.episode_length #len(self.sampler) #
 
     def __iter__(self):
@@ -90,12 +90,7 @@ class ChunkedPolicyGuideDataset(IterableDataset):
             chunk_end = min(chunk_start + self.chunk_size, end_idx)
 
             # print(f"worker id: {worker_info.id}")
-            print(f"chunk_start: {start_idx}, \
-                chunk_end: {end_idx}, \
-                sub_start_chunk: {chunk_start}, \
-                sub_end_chunk: {chunk_end}" 
-            )
-
+            print(f"chunk_start: {start_idx}, chunk_end: {end_idx}, sub_start_chunk: {chunk_start}, sub_end_chunk: {chunk_end}")
 
             episode_mask = np.zeros(self.total_size, dtype=bool)
             episode_mask[chunk_start:chunk_end] = True
