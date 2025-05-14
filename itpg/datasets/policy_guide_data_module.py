@@ -67,10 +67,12 @@ class PolicyGuideDataModule(pl.LightningDataModule):
 
         # Instantiate datasets with transforms
         self.train_dataset = hydra.utils.instantiate(
-            self.datasets_cfg, dataset_dir=self.training_dir, abs_datasets_dir=self.abs_datasets_dir, transforms=self.train_transforms
+            self.datasets_cfg, dataset_dir=self.training_dir, abs_datasets_dir=self.abs_datasets_dir, transforms=self.train_transforms, \
+                shuffle_iter=self.datasets_cfg.shuffle_train, chunk_size=self.datasets_cfg.chunk_size, 
         )
         self.val_dataset = hydra.utils.instantiate(
-            self.datasets_cfg, dataset_dir=self.val_dir, abs_datasets_dir=self.abs_datasets_dir, transforms=self.val_transforms
+            self.datasets_cfg, dataset_dir=self.val_dir, abs_datasets_dir=self.abs_datasets_dir, transforms=self.val_transforms, \
+                shuffle_iter=self.datasets_cfg.shuffle_val, chunk_size=self.datasets_cfg.chunk_size, 
         )
 
     def train_dataloader(self):
@@ -80,7 +82,6 @@ class PolicyGuideDataModule(pl.LightningDataModule):
                 num_workers=self.datasets_cfg.num_workers,
                 pin_memory=False,
                 drop_last=True,
-                #shuffle=True,
             )
 
     def val_dataloader(self):
@@ -90,5 +91,4 @@ class PolicyGuideDataModule(pl.LightningDataModule):
                 num_workers=self.datasets_cfg.num_workers,
                 pin_memory=False,
                 drop_last=True,
-                #shuffle=True,
             )

@@ -117,6 +117,11 @@ class SequenceSampler:
     
     def __len__(self):
         return len(self.indices)
+    
+    def shuffle(self):
+        # shuffle indices
+        np.random.shuffle(self.indices)
+        return self
         
     def sample_sequence(self, idx):
         buffer_start_idx, buffer_end_idx, sample_start_idx, sample_end_idx \

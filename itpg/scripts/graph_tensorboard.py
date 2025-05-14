@@ -104,7 +104,7 @@ def plot_loss_from_tensorboard(directory):
 
 if __name__ == "__main__":
     # Specify the directory containing TensorBoard event files
-    tensorboard_dir = "/home/choudhue/PolicyGuide/results/runs/2025-04-29/16-08-48/tensorboard_data"
+    tensorboard_dir = "/home/choudhue/PolicyGuide/results/runs/2025-05-13/17-39-28/tensorboard_data"
     
     # Inspect TensorBoard files
     # inspect_tensorboard_files(tensorboard_dir)
