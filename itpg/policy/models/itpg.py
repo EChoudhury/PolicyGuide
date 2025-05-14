@@ -97,6 +97,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         static_cam, _ = instantiate_test_env(play_data_cfg, "simulation")
         return static_cam
 
+
     def _convert_batch(self, batch: Dict[str, Dict], train=True, infer=False) -> Dict[str, torch.Tensor]:
         """
         Convert the batch dictionary into the desired format.
@@ -134,6 +135,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
             converted_batch["action"] = converted_batch["action"][:, :self.config.horizon, :]
         
         return converted_batch
+        
 
     def training_step(self, batch: Dict[str, Dict], batch_idx: int) -> torch.Tensor:  # type: ignore
         """

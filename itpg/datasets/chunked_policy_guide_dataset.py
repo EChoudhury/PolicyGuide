@@ -62,10 +62,10 @@ class ChunkedPolicyGuideDataset(IterableDataset):
         self.replay_buffer = RobotReplayBuffer.create_from_path(self.datasets_dir, mode='r')
         self.total_size = len(self.replay_buffer.episode_ends)
         if self.shuffle_iter:
-            self.episode_index = self.shuffle_episode_ids(self.total_size, seed=42)
+            self.episode_index = self.shuffle_episode_ids(self.total_size)
+    
 
-
-    def shuffle_episode_ids(self, total_size, seed=42):
+    def shuffle_episode_ids(self, total_size):
         """
         Shuffle episode IDs consistently across workers.
 
@@ -80,6 +80,7 @@ class ChunkedPolicyGuideDataset(IterableDataset):
         shuffled_ids = list(range(total_size))
         random.shuffle(shuffled_ids)
         return shuffled_ids
+    
 
     def __iter__(self):
         """
@@ -103,7 +104,10 @@ class ChunkedPolicyGuideDataset(IterableDataset):
         end_idx = start_idx + per_worker + (1 if worker_id < remainder else 0)
 
         if self.shuffle_iter:
-            print(f'worker id: {worker_info.id} - {self.episode_index[-1]}')
+            chunk = self.episode_index[start_idx:end_idx]
+            random.shuffle(chunk)
+            self.episode_index[start_idx:end_idx] = chunk
+            # print(f'worker id: {worker_info.id} - {self.episode_index[-1]}')
 
         for chunk_start in range(start_idx, end_idx, self.chunk_size):
             chunk_end = min(chunk_start + self.chunk_size, end_idx)
@@ -131,7 +135,7 @@ class ChunkedPolicyGuideDataset(IterableDataset):
             if self.shuffle_iter:
                 sampler.shuffle()
 
-            print(f'Sampler Len: {len(sampler)}')
+            # print(f'Sampler Len: {len(sampler)}')
 
             for idx in range(len(sampler)):
                 sample = sampler.sample_sequence(idx)
