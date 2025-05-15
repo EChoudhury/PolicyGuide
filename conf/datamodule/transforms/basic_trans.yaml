@@ -1,5 +1,5 @@
 train:
-  rgb_static:
+  observation.image_static:
     - _target_: torchvision.transforms.Resize
       size: 200
     - _target_: itpg.utils.transforms.ScaleImageTensor
@@ -11,7 +11,7 @@ train:
       std: [0.01]
   rgb_gripper:
     - _target_: torchvision.transforms.Resize
-      size: 200
+      size: 84
     - _target_: itpg.utils.transforms.ScaleImageTensor
     - _target_: torchvision.transforms.Normalize
       mean: [0.5,]
@@ -58,7 +58,7 @@ train:
     - _target_: itpg.utils.transforms.AddGaussianNoise
       mean: [ 0.0 ]
       std: [ 0.01 ]
-  robot_obs:
+  observation.state:
     - _target_: itpg.utils.transforms.NormalizeVector
     - _target_: itpg.utils.transforms.AddGaussianNoise
       mean: [0.0]
@@ -70,7 +70,7 @@ train:
       std: [0.01]
 
 val:
-  rgb_static:
+  observation.image_static:
     - _target_: torchvision.transforms.Resize
       size: 200
     - _target_: itpg.utils.transforms.ScaleImageTensor
@@ -79,7 +79,7 @@ val:
       std: [0.5,]
   rgb_gripper:
     - _target_: torchvision.transforms.Resize
-      size: 200
+      size: 84
     - _target_: itpg.utils.transforms.ScaleImageTensor
     - _target_: torchvision.transforms.Normalize
       mean: [0.5,]
@@ -105,7 +105,7 @@ val:
     - _target_: torchvision.transforms.Normalize
       mean: [0.1,]
       std: [0.2,]
-  robot_obs:
+  observation.state:
     - _target_: itpg.utils.transforms.NormalizeVector
   scene_obs:
     - _target_: itpg.utils.transforms.NormalizeVector

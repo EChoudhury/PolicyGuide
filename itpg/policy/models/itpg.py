@@ -122,20 +122,20 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         converted_batch = {
             "observation.state": batch['robot_obs'].view(B, n_obs_steps, state_dim),
             "observation.image_static": batch['rgb_obs']['rgb_static'].view(B, n_obs_steps, C, H, W),
+            "observation.image_wrist": batch['rgb_obs']['rgb_gripper'].view(B, n_obs_steps, C, H, W),
         }
 
         converted_batch["observation.image_static"] = converted_batch["observation.image_static"][:,:self.config.n_obs_steps,...]
+        converted_batch["observation.image_wrist"] = converted_batch["observation.image_wrist"][:,:self.config.n_obs_steps,...]
         converted_batch["observation.state"] = converted_batch["observation.state"][:,:self.config.n_obs_steps,:]
 
         if train:
             action_dim = batch['actions'].shape[-1]
             converted_batch["action"] = batch['actions'].view(B, n_obs_steps, action_dim)  # Assuming actions have shape (B, n_obs_steps, action_dim)
             converted_batch["action"] = converted_batch["action"][:, :self.config.horizon, :]
-
-        # print(converted_batch["observation.image_static"].shape, converted_batch["observation.state"].shape)
         
         return converted_batch
-    
+        
 
     def training_step(self, batch: Dict[str, Dict], batch_idx: int) -> torch.Tensor:  # type: ignore
         """
@@ -167,13 +167,13 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         Returns:
             loss tensor
         """
-        # convert observations
-        converted_obs = self._convert_batch(batch["vis"])
-        
+        # remove language temporarily
+        batch.pop("language", None) 
+
         # Run through diffusion policy
-        loss = self.diffusion_policy.forward(converted_obs)
+        loss = self.diffusion_policy.forward(batch)
         
-        self.log("train/total_loss", loss, on_step=False, on_epoch=True)
+        self.log("train/loss", loss, on_step=False, on_epoch=True)
 
         return loss
 
@@ -207,19 +207,16 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         Returns:
             Dictionary containing losses and the sampled plans of plan recognition and plan proposal networks.
         """
-        # convert observations
-        converted_obs = self._convert_batch(batch["vis"])
+        # remove language temporarily
+        batch.pop("language", None) 
 
-        # Run inference on diffusion policy
-        loss = self.diffusion_policy.forward(converted_obs)
+        # Run validation on diffusion policy
+        loss = self.diffusion_policy.forward(batch)
 
-        self.log("valid/valid_loss", loss, on_step=False, on_epoch=True)
+        # log validation loss
+        self.log("valid/loss", loss, on_step=False, on_epoch=True)
 
         return loss
-
-    def validation_epoch_end(self, validation_step_outputs):
-        for i, step in enumerate(validation_step_outputs):
-            self.log(f"val_loss/step_{i}", step)
 
 
     def reset(self):
@@ -228,7 +225,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         """
         self.rollout_step_counter = 0
 
-    def step(self, obs, goal):
+    def step(self, obs, goal=None, last_action=None):
         """
         Do one step of inference with the model.
 
@@ -239,34 +236,38 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         Returns:
             Predicted action.
         """
-        
+        # convert observations
         converted_obs = self._convert_batch(obs, train=False, infer=True)
 
-        # replan every replan_freq steps (default 30 i.e every second)
-        padded_guide = None
-        # if self.rollout_step_counter % self.replan_freq == 0:
-            # Not using language goal for now
-            # convert observations
-            # Use affordance model to get the guide
-        # frame = converted_obs["observation.image_static"][:,-1,...].detach().cpu().numpy()
-        # frame = frame.squeeze()
-        # frame = (frame * 255.0).astype("uint8")
-        # frame = np.transpose(frame, (1, 2, 0))
-        # frame = cv2.resize(frame, ([224, 224]))
-        # if frame.shape[-1] == 1:
-        #     frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
-        # affordance_obs = {"img": frame, "lang_goal": goal}
-        # afford_pred = self.affordance_policy.predict(affordance_obs)
-        # guide = self.camera.deproject_single_depth(afford_pred["pixel"], afford_pred["depth"])
-        # padded_guide = np.concat((guide, np.array([0, 0, 1.5707963, 1])))
-        # padded_guide = torch.tensor(padded_guide).cuda()
-        # padded_guide = torch.unsqueeze(padded_guide, 0)
+        # temporary hardcoded goal
+        # goal = "use the switch to turn on the light bulb"
+        # "pull the handle to open the drawer"
+        # "press the button to turn on the led light"
+        # "use the switch to turn on the light bulb"
 
+        padded_guide = None
+        # replan every replan_freq steps (default 30 i.e every second)
+        # if self.rollout_step_counter % self.replan_freq == 0 and self.rollout_step_counter < 10:
+            
+        #     # Use affordance model to get the guide
+        #     frame = converted_obs["observation.image_static"][:,-1,...].detach().cpu().numpy()
+        #     frame = frame.squeeze()
+        #     frame = (frame * 255.0).astype("uint8")
+        #     frame = np.transpose(frame, (1, 2, 0))
+        #     frame = cv2.resize(frame, ([224, 224]))
+        #     affordance_obs = {"img": frame, "lang_goal": goal}
+        #     afford_pred = self.affordance_policy.predict(affordance_obs)
+        #     guide = self.camera.deproject_single_depth(afford_pred["pixel"], afford_pred["depth"])
+        #     padded_guide = np.concat((guide, last_action[3:]))
+        #     padded_guide = torch.tensor(padded_guide).cuda()
+        #     padded_guide = torch.unsqueeze(padded_guide, 0)
+
+        # padded_guide = None
         # Run inference on diffusion policy
-        action = self.diffusion_policy.run_inference(converted_obs) #, guide=padded_guide)
+        action = self.diffusion_policy.run_inference(converted_obs, guide=padded_guide)
 
         self.rollout_step_counter += 1
-        return action #, padded_guide
+        return action, padded_guide
 
     def load_lang_embeddings(self, embeddings_path):
         """

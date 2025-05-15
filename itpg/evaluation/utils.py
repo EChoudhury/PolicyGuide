@@ -1,4 +1,4 @@
-from collections import Counter
+from collections import Counter, deque
 import contextlib
 import json
 import logging
@@ -16,6 +16,7 @@ from omegaconf import OmegaConf
 import pyhash
 import torch
 import pybullet
+from scipy.interpolate import splprep, splev
 
 hasher = pyhash.fnv1_32()
 logger = logging.getLogger(__name__)
@@ -24,12 +25,14 @@ logger = logging.getLogger(__name__)
 def get_default_model_and_env(train_folder, dataset_path, checkpoint, env=None, device_id=0):
     train_cfg_path = Path(train_folder) / ".hydra/config.yaml"
     train_cfg_path = format_sftp_path(train_cfg_path)
+    print(train_cfg_path)
     cfg = OmegaConf.load(train_cfg_path)
-    lang_folder = cfg.datamodule.datasets.lang_dataset.lang_folder
+    lang_folder = cfg.datamodule.datasets.lang_folder
     if not hydra.core.global_hydra.GlobalHydra.instance().is_initialized():
         hydra.initialize("../../conf/datamodule/datasets")
     # we don't want to use shm dataset for evaluation
-    datasets_cfg = hydra.compose("vision_lang.yaml", overrides=["lang_dataset.lang_folder=" + lang_folder])
+    # datasets_cfg = hydra.compose("vision_lang.yaml", overrides=["lang_dataset.lang_folder=" + lang_folder])
+    datasets_cfg = hydra.compose("policy_guide_dataset.yaml", overrides=["lang_folder=" + lang_folder])
     # since we don't use the trainer during inference, manually set up data_module
     cfg.datamodule.datasets = datasets_cfg
     cfg.datamodule.root_data_dir = dataset_path
@@ -37,7 +40,7 @@ def get_default_model_and_env(train_folder, dataset_path, checkpoint, env=None, 
     data_module.prepare_data()
     data_module.setup()
     dataloader = data_module.val_dataloader()
-    dataset = dataloader.dataset.datasets["lang"]
+    dataset = dataloader.dataset #.datasets["lang"]
     device = torch.device(f"cuda:{device_id}")
 
     if env is None:
@@ -176,7 +179,131 @@ def imshow_tensor(window, img_tensor, wait=0, resize=True, keypoints=None, text=
         cv2.imshow(window, img[:, :, ::-1])
     cv2.waitKey(wait)
 
-def visualize_point(client_id, point, color=[1,0,0,1]):
+
+def interpolate_gradient(base_gradient, num_segments):
+    """
+    Interpolates a gradient to match the number of segments.
+
+    Args:
+        base_gradient: A list of RGBA colors defining the base gradient.
+        num_segments: The number of segments to generate colors for.
+
+    Returns:
+        A list of RGBA colors interpolated to match the number of segments.
+    """
+    base_gradient = np.array(base_gradient)
+    base_positions = np.linspace(0, 1, len(base_gradient))  # Positions of base colors
+    target_positions = np.linspace(0, 1, num_segments)  # Positions for interpolated colors
+
+    # Interpolate each channel (R, G, B, A) separately
+    interpolated_gradient = np.zeros((num_segments, 4))
+    for i in range(4):  # Iterate over RGBA channels
+        interpolated_gradient[:, i] = np.interp(target_positions, base_positions, base_gradient[:, i])
+
+    return interpolated_gradient.tolist()
+
+
+def visualize_point_policy(client_id, points, smooth_factor=20, gradient=None, line_width=0.005):
+    """
+    Visualizes the action trajectory as a series of transparent cylinders with spline smoothing.
+
+    Args:
+        client_id: The PyBullet client ID.
+        points: A list of 3D points representing the trajectory.
+        gradient: A list of RGBA colors for the gradient. Defaults to a rainbow gradient.
+        line_width: The radius of the cylinders.
+        smooth_factor: Number of interpolated points between each pair of original points.
+    Returns:
+        A tuple containing:
+            - A list of cylinder IDs for further manipulation.
+            - A list of RGBA colors used for the cylinders.
+    """
+    if isinstance(points, torch.Tensor):
+        points = points.detach().cpu().numpy()
+    elif not isinstance(points, np.ndarray):
+        raise ValueError("Points must be a torch tensor or numpy array.")
+
+    # Interpolate the points using a spline
+    tck, u = splprep(points.T, s=0)  # Create a spline representation
+    u_fine = np.linspace(0, 1, len(points) * smooth_factor)  # Generate fine-grained parameter values
+    smooth_points = np.array(splev(u_fine, tck)).T  # Evaluate the spline to get smooth points
+
+    if gradient is None:
+        # Define a default rainbow gradient
+        gradient = [
+            [1.0, 0.0, 0.0, 0.1],  # Red (transparent)
+            [1.0, 0.5, 0.0, 0.1],  # Orange (transparent)
+            [1.0, 1.0, 0.0, 0.1],  # Yellow (transparent)
+            [0.0, 1.0, 0.0, 0.1],  # Green (transparent)
+            [0.0, 0.0, 1.0, 0.1],  # Blue (transparent)
+            [0.29, 0.0, 0.51, 0.1],  # Indigo (transparent)
+            [0.56, 0.0, 1.0, 0.1],  # Violet (transparent)
+        ]
+
+    num_segments = smooth_points.shape[0] - 1
+    
+    # Interpolate the gradient to match the number of segments
+    gradient = interpolate_gradient(gradient, num_segments)
+
+    cylinder_ids = []
+    cylinder_colors = []
+
+    for i in range(num_segments):
+        start_point = smooth_points[i]
+        end_point = smooth_points[i + 1]
+        color = gradient[i % len(gradient)]  # Cycle through the gradient colors
+
+        midpoint = (start_point + end_point) / 2
+        direction = end_point - start_point
+        length = np.linalg.norm(direction)
+        direction = direction / length  # Normalize the direction vector
+
+        # Compute orientation for the cylinder
+        z_axis = np.array([0, 0, 1])
+        rotation_axis = np.cross(z_axis, direction)
+        rotation_angle = np.arccos(np.dot(z_axis, direction))
+        if np.linalg.norm(rotation_axis) < 1e-6:
+            orientation = pybullet.getQuaternionFromEuler([0, 0, 0]) if direction[2] > 0 else pybullet.getQuaternionFromEuler([np.pi, 0, 0])
+        else:
+            rotation_axis = rotation_axis / np.linalg.norm(rotation_axis)
+            orientation = pybullet.getQuaternionFromAxisAngle(rotation_axis.tolist(), rotation_angle)
+
+        # Create a visual shape for the cylinder
+        visual_shape_id = pybullet.createVisualShape(
+            shapeType=pybullet.GEOM_CYLINDER,
+            radius=line_width,
+            length=length,
+            rgbaColor=color,
+            physicsClientId=client_id
+        )
+
+        # Create a multi-body to place the cylinder in the scene
+        cylinder_id = pybullet.createMultiBody(
+            baseMass=0,
+            baseVisualShapeIndex=visual_shape_id,
+            basePosition=midpoint.tolist(),
+            baseOrientation=orientation,
+            physicsClientId=client_id
+        )
+
+        cylinder_ids.append(cylinder_id)
+        cylinder_colors.append(color)  # Store the original color
+
+    return cylinder_ids, cylinder_colors
+
+
+def visualize_point(client_id, point, color_idx=8):
+    gradient = [
+        [0.2, 0.0, 0.0, 1.0],  # Very dark red
+        [0.35, 0.0, 0.0, 1.0],
+        [0.5, 0.0, 0.0, 1.0],
+        [0.65, 0.0, 0.0, 1.0],
+        [0.75, 0.0, 0.0, 1.0],
+        [0.85, 0.0, 0.0, 1.0],
+        [0.95, 0.0, 0.0, 1.0],
+        [1.0, 0.0, 0.0, 1.0],   # Bright red
+        [0.2, 0.2, 1.0, 1.0],   # Blue
+    ]
     # Define sphere properties
     radius = 0.02
     mass = 0  # Use 0 for a static sphere
@@ -184,7 +311,7 @@ def visualize_point(client_id, point, color=[1,0,0,1]):
 
     # Create sphere in the Calvin environment's physics client
     collision_shape = pybullet.createCollisionShape(pybullet.GEOM_SPHERE, radius=radius, physicsClientId=client_id)
-    visual_shape = pybullet.createVisualShape(pybullet.GEOM_SPHERE, radius=radius, rgbaColor=color, physicsClientId=client_id)
+    visual_shape = pybullet.createVisualShape(pybullet.GEOM_SPHERE, radius=radius, rgbaColor=gradient[color_idx], physicsClientId=client_id)
 
     # Create the actual sphere body
     sphere_id = pybullet.createMultiBody(
@@ -271,8 +398,8 @@ def get_env_state_for_initial_condition(initial_condition):
             scene_obs[0] = 0.28
         if initial_condition["drawer"] == "open":
             scene_obs[1] = 0.22
-        if initial_condition["lightbulb"] == 1:
-            scene_obs[3] = 0.088
+        if initial_condition["lightbulb"] == 0:
+            scene_obs[3] = 0.00 #0.088
         scene_obs[4] = initial_condition["lightbulb"]
         scene_obs[5] = initial_condition["led"]
         # red block

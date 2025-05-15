@@ -104,7 +104,7 @@ class DiffusionConfig:
     input_shapes: dict[str, list[int]] = field(
         default_factory=lambda: {
             "observation.image_static": [3, 200, 200],
-            # "observation.image_wrist": [3, 84, 84],
+            "observation.image_wrist": [3, 200, 200],
             "observation.state": [8],
         }
     )
@@ -118,7 +118,7 @@ class DiffusionConfig:
     input_normalization_modes: dict[str, str] = field(
         default_factory=lambda: {
             "observation.image_static": "mean_std",
-            # "observation.image_wrist": "mean_std",
+            "observation.image_wrist": "mean_std",
             "observation.state": "min_max",
         }
     )
@@ -146,7 +146,7 @@ class DiffusionConfig:
     beta_end: float = 0.02
     prediction_type: str = "epsilon"
     clip_sample: bool = True
-    clip_sample_range: float = 1.0
+    clip_sample_range: float = 5.0
 
     # Inference
     num_inference_steps: int | None = None

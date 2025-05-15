@@ -1,0 +1,5 @@
+rgb_obs: ['observation.image_static']
+depth_obs: []
+state_obs: ['observation.state']
+actions: ['actions']
+language: ['language']

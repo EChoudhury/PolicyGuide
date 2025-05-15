@@ -58,11 +58,11 @@ class CalvinDataModule(pl.LightningDataModule):
 
         if self.use_shm:
             # When using shared memory dataset, initialize lookups
-            train_shmem_loader = SharedMemoryLoader(self.datasets_cfg, self.training_dir)
-            train_shm_lookup = train_shmem_loader.load_data_in_shared_memory()
-
             val_shmem_loader = SharedMemoryLoader(self.datasets_cfg, self.val_dir)
             val_shm_lookup = val_shmem_loader.load_data_in_shared_memory()
+
+            train_shmem_loader = SharedMemoryLoader(self.datasets_cfg, self.training_dir)
+            train_shm_lookup = train_shmem_loader.load_data_in_shared_memory()
 
             save_shm_lookup(train_shm_lookup, val_shm_lookup)
 

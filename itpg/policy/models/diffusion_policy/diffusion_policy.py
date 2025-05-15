@@ -71,7 +71,7 @@ class DiffusionPolicy(nn.Module, PyTorchModelHubMixin):
         self.config = config
 
         self.dataset_stats = dataset_stats
-        print(dataset_stats)
+        print(f"Dataset_Stats: {self.dataset_stats}")
         if self.dataset_stats:
             self.normalize_inputs = Normalize(
                 config.input_shapes, config.input_normalization_modes, dataset_stats
@@ -102,6 +102,7 @@ class DiffusionPolicy(nn.Module, PyTorchModelHubMixin):
     @torch.no_grad
     def run_inference(self, observation_batch: dict[str, Tensor], guide: Tensor | None = None, visualizer=None, multi=False) -> Tensor:
         if self.dataset_stats:
+            print("Is being normalized")
             observation_batch = self.normalize_inputs(observation_batch)
             if guide is not None:
                 guide = self.normalize_targets({"action": guide})["action"]

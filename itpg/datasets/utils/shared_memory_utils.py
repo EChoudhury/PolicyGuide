@@ -184,9 +184,9 @@ class SharedMemoryLoader:
             proc.join()
 
         episode_lookup_vision, lang_episode_dict = gather_results(return_dict)
-
         # lang data
         for i, (start_idx, end_idx) in enumerate(tqdm(lang_ep_start_end_ids)):
+            print(start_idx, end_idx)
             for key in lang_episode_dict:
                 print(key)
                 offset, step = lang_episode_dict[key][start_idx]

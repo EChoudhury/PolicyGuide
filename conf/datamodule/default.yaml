@@ -1,12 +1,10 @@
 defaults:
-  - datasets: vision_lang_shm
-  - transforms: play_basic
+  - datasets: policy_guide_dataset
+  - transforms: play_basic #basic_trans
   - proprioception_dims: robot_no_joints 
-  - observation_space: lang_rgb_static_abs_act
-_target_: itpg.datasets.calvin_data_module.CalvinDataModule
+  - observation_space: lang_rgb_static_gripper_abs_act
+_target_: itpg.datasets.policy_guide_data_module.PolicyGuideDataModule
 _recursive_: false
-root_data_dir: "dataset/task_D_D"
-action_space: 7
-action_max: [1., 1., 1., 1., 1., 1., 1.,]
-action_min: [-1., -1., -1., -1., -1., -1., -1]
+root_data_dir: "/home/choudhue/PolicyGuide/dataset/calvin_D_fullT_dataset"
 shuffle_val: false
+lang_folder: "lang_annotations"

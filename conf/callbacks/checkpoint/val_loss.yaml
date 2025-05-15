@@ -4,4 +4,4 @@ verbose: True
 monitor: valid/valid_loss
 mode: min
 dirpath: saved_models
-filename: '{epoch}' #put back in when PL fixes this _{val/accuracy:.4f}'
+filename: '{epoch}_{valid/valid_loss:.4f}'

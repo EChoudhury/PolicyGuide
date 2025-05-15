@@ -1,0 +1,20 @@
+_target_: itpg.datasets.chunked_policy_guide_dataset.ChunkedPolicyGuideDataset #itpg.datasets.policy_guide_dataset.PolicyGuideDataset  #
+dataset_dir: /home/choudhue/PolicyGuide/dataset/calvin_D_fullT_dataset
+abs_datasets_dir: /home/choudhue/PolicyGuide/dataset/calvin_D_fullT_dataset
+lang_folder: "lang_annotations"
+proprio_state: ${datamodule.proprioception_dims} #${proprioception_dims} #
+obs_space: ${datamodule.observation_space} #${observation_space} #
+n_obs_steps: 2
+horizon: 16
+n_action_steps: 8
+pad_before: 0
+pad_after: 0
+batch_size: 64
+num_workers: 8
+shuffle_train: true
+shuffle_val: false
+chunk_size: 256
+image_shape: 
+  height: 200
+  width: 200
+  channels: 3
