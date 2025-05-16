@@ -1,0 +1,3 @@
+_target_: itpg.policy.models.language_encoders.sbert_lang_encoder.SBertLang
+freeze_backbone: true
+pretrained: true

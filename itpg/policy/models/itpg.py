@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import pickle
 import cv2
+from tqdm import tqdm 
 from typing import Any, Dict, Optional, Tuple
 
 from itpg.policy.models.calvin_base_model import CalvinBaseModel
@@ -33,27 +34,44 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
     def __init__(
         self,
         optimizer: DictConfig,
+        language_encoder: DictConfig,
         affordance_checkpoint: dict,
         replan_freq: int,
+        root_data_dir: str,
         stats_path: None = None,
+        use_affordance: bool = False,
+        affordance_duration: int = 10,
+        use_lang_encoding: bool = True,
     ):
         super(ITPG, self).__init__()
 
-        # affordance policy
+        # affordance toggle
+        self.use_affordance = use_affordance
+        self.affordance_duration = affordance_duration
 
-        # diffusion policy network
+        # language encoder toggle
+        self.use_lang_encoding = use_lang_encoding
+
         # load stats dataset for normalization
         self.stats = self._get_stats(stats_path)
+
+        # TODO: move config file to hydra
         # self.diffusion_policy = hydra.utils.instantiate(diffusion_policy)
+
+        # load diffusion policy
         self.config = DiffusionConfig()
         self.diffusion_policy = DiffusionPolicy(self.config, self.stats)
 
-        # affordance policy network
+        # load affordance policy network
         self.camera = self._get_camera(affordance_checkpoint.merged_folder)
         self.affordance_policy, _ = get_aff_model(**affordance_checkpoint.model)
         self.affordance_policy = self.affordance_policy.cuda()
 
-        self.modality_scope = "vis"
+        # load language encoder
+        self.language_encoder = hydra.utils.instantiate(language_encoder)
+        self.language_encoder = self.language_encoder.cuda()
+
+        # load optimizer
         self.optimizer_config = optimizer
 
         self.optimizer_config["lr"] = self.optimizer_config["lr"]
@@ -64,12 +82,18 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
 
         for param in self.diffusion_policy.parameters():
             assert param.requires_grad, "Parameter does not require gradients"
+        
         # for inference
         self.rollout_step_counter = 0
         self.replan_freq = replan_freq
         self.latent_goal = None
         self.plan = None
-        self.lang_embeddings = None
+
+        # load language annotations if using encodings
+        self.root_data_dir = root_data_dir
+        if self.use_lang_encoding:
+            self.train_lang_annotations = self.load_lang_annotations(root_data_dir + "/training/lang_annotations/auto_lang_ann.npy")
+            self.val_lang_annotations = self.load_lang_annotations(root_data_dir + "/validation/lang_annotations/auto_lang_ann.npy")
 
 
     def configure_optimizers(self):
@@ -167,8 +191,19 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         Returns:
             loss tensor
         """
-        # remove language temporarily
-        batch.pop("language", None) 
+        # get text encodings or remove language
+        if self.use_lang_encoding:
+            encodings = []
+            for idx in batch["language"]:
+                ann = self.train_lang_annotations[int(idx[0])]
+                encodings.append(self.language_encoder.encode_text(ann)[0])
+            encodings = torch.stack(encodings)
+            # TODO: remove this hack, add dp config to this module
+            B, _, emb_dim = encodings.shape
+            encodings = encodings.expand(B, 2, emb_dim) 
+            batch["observation.embedding"] = encodings
+        else:
+            batch.pop("language", None) 
 
         # Run through diffusion policy
         loss = self.diffusion_policy.forward(batch)
@@ -207,8 +242,19 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         Returns:
             Dictionary containing losses and the sampled plans of plan recognition and plan proposal networks.
         """
-        # remove language temporarily
-        batch.pop("language", None) 
+         # get text encodings or remove language
+        if self.use_lang_encoding:
+            encodings = []
+            for idx in batch["language"]:
+                ann = self.val_lang_annotations[int(idx[0])]
+                encodings.append(self.language_encoder.encode_text(ann)[0])
+            encodings = torch.stack(encodings)
+            # TODO: remove this hack, add dp config to this module
+            B, _, emb_dim = encodings.shape
+            encodings = encodings.expand(B, 2, emb_dim) 
+            batch["observation.embedding"] = encodings
+        else:
+            batch.pop("language", None) 
 
         # Run validation on diffusion policy
         loss = self.diffusion_policy.forward(batch)
@@ -239,6 +285,10 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         # convert observations
         converted_obs = self._convert_batch(obs, train=False, infer=True)
 
+        # get text encodings
+        if self.use_lang_encoding:
+            converted_obs["observation.embedding"] = self.language_encoder.encode_text(batch["language"][0])[0]
+
         # temporary hardcoded goal
         # goal = "use the switch to turn on the light bulb"
         # "pull the handle to open the drawer"
@@ -246,21 +296,21 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         # "use the switch to turn on the light bulb"
 
         padded_guide = None
-        # replan every replan_freq steps (default 30 i.e every second)
-        if self.rollout_step_counter % self.replan_freq == 0 and self.rollout_step_counter < 20:
-            
-            # Use affordance model to get the guide
-            frame = converted_obs["observation.image_static"][:,-1,...].detach().cpu().numpy()
-            frame = frame.squeeze()
-            frame = (frame * 255.0).astype("uint8")
-            frame = np.transpose(frame, (1, 2, 0))
-            frame = cv2.resize(frame, ([224, 224]))
-            affordance_obs = {"img": frame, "lang_goal": goal}
-            afford_pred = self.affordance_policy.predict(affordance_obs)
-            guide = self.camera.deproject_single_depth(afford_pred["pixel"], afford_pred["depth"])
-            padded_guide = np.concat((guide, last_action[3:]))
-            padded_guide = torch.tensor(padded_guide).cuda()
-            padded_guide = torch.unsqueeze(padded_guide, 0)
+
+        # Use affordance model to get the guide
+        if self.use_affordance:
+            if self.rollout_step_counter % self.replan_freq == 0 and self.rollout_step_counter < self.affordance_duration:
+                frame = converted_obs["observation.image_static"][:,-1,...].detach().cpu().numpy()
+                frame = frame.squeeze()
+                frame = (frame * 255.0).astype("uint8")
+                frame = np.transpose(frame, (1, 2, 0))
+                frame = cv2.resize(frame, ([224, 224]))
+                affordance_obs = {"img": frame, "lang_goal": goal}
+                afford_pred = self.affordance_policy.predict(affordance_obs)
+                guide = self.camera.deproject_single_depth(afford_pred["pixel"], afford_pred["depth"])
+                padded_guide = np.concat((guide, last_action[3:]))
+                padded_guide = torch.tensor(padded_guide).cuda()
+                padded_guide = torch.unsqueeze(padded_guide, 0)
 
         # padded_guide = None
         # Run inference on diffusion policy
@@ -269,14 +319,17 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         self.rollout_step_counter += 1
         return action, padded_guide
 
-    def load_lang_embeddings(self, embeddings_path):
+    def load_lang_annotations(self, annotations_path):
         """
-        This has to be called before inference. Loads the lang embeddings from the dataset.
+        This has to be called before training with language. Loads the lang annotations from the dataset.
 
         Args:
-            embeddings_path: Path to <dataset>/validation/embeddings.npy
+            annotations_path: Path to <dataset>/[training/validation]/lang_annotations/auto_lang_ann.npy
         """
-        embeddings = np.load(embeddings_path, allow_pickle=True).item()
+        annotations = np.load(annotations_path, allow_pickle=True).item()
         # we want to get the embedding for full sentence, not just a task name
-        self.lang_embeddings = {v["ann"][0]: v["emb"] for k, v in embeddings.items()}
+        lang_annotations = {
+            k: v for k, v in tqdm(enumerate(annotations["language"]["ann"]), desc=f"Loading annotations from {annotations_path}")
+        }
+        return lang_annotations
 

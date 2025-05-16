@@ -106,6 +106,7 @@ class DiffusionConfig:
             "observation.image_static": [3, 200, 200],
             "observation.image_wrist": [3, 200, 200],
             "observation.state": [8],
+            "observation.embedding": [1024],
         }
     )
     output_shapes: dict[str, list[int]] = field(

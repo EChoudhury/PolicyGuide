@@ -1,0 +1,3 @@
+_target_: itpg.policy.models.language_encoders.clip_lang_encoder.CLIPLang
+freeze_backbone: true
+pretrained: true

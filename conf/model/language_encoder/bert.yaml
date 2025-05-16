@@ -1,0 +1,3 @@
+_target_: itpg.policy.models.language_encoders.bert_lang_encoder.BERTLang
+freeze_backbone: true
+pretrained: true

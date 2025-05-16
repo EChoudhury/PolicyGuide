@@ -150,6 +150,7 @@ class DiffusionModel(nn.Module):
         num_images = len([k for k in config.input_shapes if k.startswith("observation.image")])
         self._use_images = False
         self._use_env_state = False
+        self._use_lang_embedding = False
         if num_images > 0:
             self._use_images = True
             self.rgb_encoder = DiffusionRgbEncoder(config)
@@ -157,6 +158,9 @@ class DiffusionModel(nn.Module):
         if "observation.environment_state" in config.input_shapes:
             self._use_env_state = True
             global_cond_dim += config.input_shapes["observation.environment_state"][0]
+        if "observation.embedding" in config.input_shapes:
+            self._use_lang_embedding = True
+            global_cond_dim += config.input_shapes["observation.embedding"][0]
 
         self.unet = DiffusionConditionalUnet1d(config, global_cond_dim=global_cond_dim * config.n_obs_steps)
 
@@ -305,9 +309,12 @@ class DiffusionModel(nn.Module):
         if self._use_env_state:
             global_cond_feats.append(batch["observation.environment_state"])
 
+        if self._use_lang_embedding:
+            global_cond_feats.append(batch["observation.embedding"])
+
         # Concatenate features then flatten to (B, global_cond_dim).
         global_cond = torch.cat(global_cond_feats, dim=-1).flatten(start_dim=1)
-        # print(f"Global conditioning tensor shape: {global_cond.shape}")
+        # print(f"GlRuntimeError: Sizes of tensors must match except in dimension 2. Expected size 2 but got size 1 for tensor number 2 in the list.obal conditioning tensor shape: {global_cond.shape}")
         return global_cond
 
     def generate_actions(self, batch: dict[str, Tensor], guide: Tensor | None = None, visualizer=None, normalizer=None, multi=False) -> Tensor:
