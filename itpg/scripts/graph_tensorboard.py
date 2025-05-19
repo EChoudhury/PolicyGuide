@@ -71,6 +71,8 @@ def plot_loss_from_tensorboard(directory):
                         train_loss = event_acc.Scalars('train/loss')
                     if 'valid/loss' in tags['scalars']:
                         valid_loss = event_acc.Scalars('valid/loss')
+                    if 'epoch' in tags['scalars']:
+                        epoch = event_acc.Scalars('epoch')
 
     # Extract steps and values
     if train_loss:
@@ -85,14 +87,22 @@ def plot_loss_from_tensorboard(directory):
     else:
         valid_steps, valid_values = [], []
 
+    if epoch:
+        epoch_steps = [scalar.step for scalar in epoch]
+        epoch_values = [scalar.value for scalar in epoch]
+        epoch_values = remove_duplicates(epoch_values)
+    else:
+        epoch_steps, epoch_values = [], []
+
     # Plot the losses
     plt.figure(figsize=(10, 6))
-    if train_steps and train_values:
-        plt.plot(train_steps, train_values, label='Train Loss', color='blue')
-    if valid_steps and valid_values:
-        plt.plot(valid_steps, valid_values, label='Validation Loss', color='orange')
+    if epoch_values and train_steps and train_values:
+        epoch_values_shorter = epoch_values[:-1]
+        plt.plot(epoch_values_shorter, train_values, label='Train Loss', color='blue')
+    if epoch_values and valid_steps and valid_values:
+        plt.plot(epoch_values, valid_values, label='Validation Loss', color='orange')
 
-    plt.xlabel('Steps')
+    plt.xlabel('Epochs')
     plt.ylabel('Loss')
     plt.title('Train and Validation Loss')
     plt.legend()
@@ -102,9 +112,15 @@ def plot_loss_from_tensorboard(directory):
     # plt.show()
     print("Plot saved as 'train_valid_loss.png'")
 
+
+def remove_duplicates(array):
+    seen = set()
+    return [x for x in array if not (x in seen or seen.add(x))]
+
+
 if __name__ == "__main__":
     # Specify the directory containing TensorBoard event files
-    tensorboard_dir = "/home/choudhue/PolicyGuide/results/runs/2025-05-13/17-39-28/tensorboard_data"
+    tensorboard_dir = "/home/choudhue/PolicyGuide/results/runs/2025-04-29/16-08-48/tensorboard_data"
     
     # Inspect TensorBoard files
     # inspect_tensorboard_files(tensorboard_dir)

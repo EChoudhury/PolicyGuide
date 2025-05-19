@@ -197,11 +197,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
             for idx in batch["language"]:
                 ann = self.train_lang_annotations[int(idx[0])]
                 encodings.append(self.language_encoder.encode_text(ann)[0])
-            encodings = torch.stack(encodings)
-            # TODO: remove this hack, add dp config to this module
-            B, _, emb_dim = encodings.shape
-            encodings = encodings.expand(B, 2, emb_dim) 
-            batch["observation.embedding"] = encodings
+            batch["observation.embedding"] = torch.stack(encodings).squeeze()
         else:
             batch.pop("language", None) 
 
@@ -248,11 +244,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
             for idx in batch["language"]:
                 ann = self.val_lang_annotations[int(idx[0])]
                 encodings.append(self.language_encoder.encode_text(ann)[0])
-            encodings = torch.stack(encodings)
-            # TODO: remove this hack, add dp config to this module
-            B, _, emb_dim = encodings.shape
-            encodings = encodings.expand(B, 2, emb_dim) 
-            batch["observation.embedding"] = encodings
+            batch["observation.embedding"] = torch.stack(encodings).squeeze()
         else:
             batch.pop("language", None) 
 
@@ -287,7 +279,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
 
         # get text encodings
         if self.use_lang_encoding:
-            converted_obs["observation.embedding"] = self.language_encoder.encode_text(batch["language"][0])[0]
+            converted_obs["observation.embedding"] = self.language_encoder.encode_text(goal)[0]
 
         # temporary hardcoded goal
         # goal = "use the switch to turn on the light bulb"

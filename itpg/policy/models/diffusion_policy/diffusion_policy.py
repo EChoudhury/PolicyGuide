@@ -158,11 +158,14 @@ class DiffusionModel(nn.Module):
         if "observation.environment_state" in config.input_shapes:
             self._use_env_state = True
             global_cond_dim += config.input_shapes["observation.environment_state"][0]
+
+        global_cond_dim = global_cond_dim * config.n_obs_steps
+
         if "observation.embedding" in config.input_shapes:
             self._use_lang_embedding = True
             global_cond_dim += config.input_shapes["observation.embedding"][0]
 
-        self.unet = DiffusionConditionalUnet1d(config, global_cond_dim=global_cond_dim * config.n_obs_steps)
+        self.unet = DiffusionConditionalUnet1d(config, global_cond_dim=global_cond_dim)
 
         self.noise_scheduler = _make_noise_scheduler(
             config.noise_scheduler_type,
@@ -309,11 +312,14 @@ class DiffusionModel(nn.Module):
         if self._use_env_state:
             global_cond_feats.append(batch["observation.environment_state"])
 
-        if self._use_lang_embedding:
-            global_cond_feats.append(batch["observation.embedding"])
-
         # Concatenate features then flatten to (B, global_cond_dim).
         global_cond = torch.cat(global_cond_feats, dim=-1).flatten(start_dim=1)
+
+        if self._use_lang_embedding:
+            global_cond_feats = [global_cond]
+            global_cond_feats.append(batch["observation.embedding"])
+            global_cond = torch.cat(global_cond_feats, dim=-1).flatten(start_dim=1)
+            
         # print(f"GlRuntimeError: Sizes of tensors must match except in dimension 2. Expected size 2 but got size 1 for tensor number 2 in the list.obal conditioning tensor shape: {global_cond.shape}")
         return global_cond
 

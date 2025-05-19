@@ -15,6 +15,7 @@ conda activate policyguide
 
 # Install requirements 
 pip install -r requirements.txt 
+pip install -U git+https://github.com/qubvel/segmentation_models.pytorch
 
 # Install Pyhash (deprecation issue with pip)
 conda install conda-forge::pyhash
@@ -24,6 +25,9 @@ conda install conda-forge::pyhash
 ```bash
 git clone --recursive https://github.com/mees/calvin_env.git
 cd calvin_env/tacto
+pip install -e .
+cd ..
+cd r3m
 pip install -e .
 cd ..
 pip install -e .
