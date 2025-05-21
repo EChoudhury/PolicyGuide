@@ -173,6 +173,7 @@ wandb/
 *.out
 images/
 outputs/
+viz/
 
 # Simulator
 calvin_env/

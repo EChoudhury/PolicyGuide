@@ -156,20 +156,20 @@ def evaluate_policy(model, env, epoch, eval_log_dir=None, debug=False, create_pl
         Dictionary with results
     """
     conf_dir = Path(__file__).absolute().parents[2] / "conf"
-    # task_cfg = OmegaConf.load(conf_dir / "callbacks/rollout/tasks/new_playtable_tasks.yaml")
-    task_cfg = OmegaConf.load(conf_dir / "callbacks/rollout/tasks/calvin_D_3T_tasks.yaml")
+    task_cfg = OmegaConf.load(conf_dir / "callbacks/rollout/tasks/new_playtable_tasks.yaml")
+    # task_cfg = OmegaConf.load(conf_dir / "callbacks/rollout/tasks/calvin_D_3T_tasks.yaml")
     task_oracle = hydra.utils.instantiate(task_cfg)
-    # val_annotations = OmegaConf.load(conf_dir / "annotations/new_playtable_validation.yaml")
-    val_annotations = OmegaConf.load(conf_dir / "annotations/calvin_D_3T_validation.yaml")
+    val_annotations = OmegaConf.load(conf_dir / "annotations/new_playtable_validation.yaml")
+    # val_annotations = OmegaConf.load(conf_dir / "annotations/calvin_D_3T_validation.yaml")
 
     eval_log_dir = get_log_dir(eval_log_dir)
 
-    # eval_sequences = get_sequences(NUM_SEQUENCES)
+    eval_sequences = get_sequences(NUM_SEQUENCES)
 
     # Temporary hardcoded sequences for testing
-    eval_sequences = [({'led': 0, 'lightbulb': 0, 'slider': 'left', 'drawer': 'closed', 'red_block': 'table', 'blue_block': 'slider_right', 'pink_block': 'slider_left', 'grasped': 0}, (('turn_on_lightbulb', 'open_drawer', 'turn_on_led'))),
-                      ({'led': 0, 'lightbulb': 0, 'slider': 'right', 'drawer': 'closed', 'red_block': 'slider_right', 'blue_block': 'slider_left', 'pink_block': 'table', 'grasped': 0}, (('open_drawer', 'turn_on_led', 'turn_on_lightbulb'))),
-                      ({'led': 0, 'lightbulb': 0, 'slider': 'right', 'drawer': 'closed', 'red_block': 'table', 'blue_block': 'slider_left', 'pink_block': 'table', 'grasped': 0}, (('turn_on_led', 'turn_on_lightbulb', 'open_drawer')))]
+    # eval_sequences = [({'led': 0, 'lightbulb': 0, 'slider': 'left', 'drawer': 'closed', 'red_block': 'table', 'blue_block': 'slider_right', 'pink_block': 'slider_left', 'grasped': 0}, (('turn_on_lightbulb', 'open_drawer', 'turn_on_led'))),
+    #                   ({'led': 0, 'lightbulb': 0, 'slider': 'right', 'drawer': 'closed', 'red_block': 'slider_right', 'blue_block': 'slider_left', 'pink_block': 'table', 'grasped': 0}, (('open_drawer', 'turn_on_led', 'turn_on_lightbulb'))),
+    #                   ({'led': 0, 'lightbulb': 0, 'slider': 'right', 'drawer': 'closed', 'red_block': 'table', 'blue_block': 'slider_left', 'pink_block': 'table', 'grasped': 0}, (('turn_on_led', 'turn_on_lightbulb', 'open_drawer')))]
     
     results = []
     plans = defaultdict(list)

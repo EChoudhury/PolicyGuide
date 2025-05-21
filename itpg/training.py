@@ -70,6 +70,8 @@ def train(cfg: DictConfig) -> None:
 
     trainer = Trainer(**trainer_args)
 
+    train_logger.watch(model)
+
     # Start training
     trainer.fit(model, datamodule=datamodule, ckpt_path=chk)  # type: ignore
 

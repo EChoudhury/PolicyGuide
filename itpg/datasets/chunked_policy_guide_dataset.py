@@ -135,7 +135,7 @@ class ChunkedPolicyGuideDataset(IterableDataset):
             if self.shuffle_iter:
                 sampler.shuffle()
 
-            # print(f'Sampler Len: {len(sampler)}')
+            print(f'Sampler Len: {len(sampler)}')
 
             for idx in range(len(sampler)):
                 sample = sampler.sample_sequence(idx)

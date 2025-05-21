@@ -52,7 +52,7 @@ def get_default_model_and_env(train_folder, dataset_path, checkpoint, env=None, 
     # import the model class that was used for the training
     model_cls = locate(cfg.model._target_)
     model = model_cls.load_from_checkpoint(checkpoint)
-    model.load_lang_embeddings(dataset.abs_datasets_dir / dataset.lang_folder / "embeddings.npy")
+    # model.load_lang_embeddings(dataset.abs_datasets_dir / dataset.lang_folder / "embeddings.npy")
     model.freeze()
     model = model.cuda(device)
     print("Successfully loaded model.")

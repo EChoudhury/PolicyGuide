@@ -247,20 +247,20 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
 
         padded_guide = None
         # replan every replan_freq steps (default 30 i.e every second)
-        # if self.rollout_step_counter % self.replan_freq == 0 and self.rollout_step_counter < 10:
+        if self.rollout_step_counter % self.replan_freq == 0 and self.rollout_step_counter < 20:
             
-        #     # Use affordance model to get the guide
-        #     frame = converted_obs["observation.image_static"][:,-1,...].detach().cpu().numpy()
-        #     frame = frame.squeeze()
-        #     frame = (frame * 255.0).astype("uint8")
-        #     frame = np.transpose(frame, (1, 2, 0))
-        #     frame = cv2.resize(frame, ([224, 224]))
-        #     affordance_obs = {"img": frame, "lang_goal": goal}
-        #     afford_pred = self.affordance_policy.predict(affordance_obs)
-        #     guide = self.camera.deproject_single_depth(afford_pred["pixel"], afford_pred["depth"])
-        #     padded_guide = np.concat((guide, last_action[3:]))
-        #     padded_guide = torch.tensor(padded_guide).cuda()
-        #     padded_guide = torch.unsqueeze(padded_guide, 0)
+            # Use affordance model to get the guide
+            frame = converted_obs["observation.image_static"][:,-1,...].detach().cpu().numpy()
+            frame = frame.squeeze()
+            frame = (frame * 255.0).astype("uint8")
+            frame = np.transpose(frame, (1, 2, 0))
+            frame = cv2.resize(frame, ([224, 224]))
+            affordance_obs = {"img": frame, "lang_goal": goal}
+            afford_pred = self.affordance_policy.predict(affordance_obs)
+            guide = self.camera.deproject_single_depth(afford_pred["pixel"], afford_pred["depth"])
+            padded_guide = np.concat((guide, last_action[3:]))
+            padded_guide = torch.tensor(padded_guide).cuda()
+            padded_guide = torch.unsqueeze(padded_guide, 0)
 
         # padded_guide = None
         # Run inference on diffusion policy

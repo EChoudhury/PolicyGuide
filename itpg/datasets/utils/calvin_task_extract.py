@@ -110,7 +110,7 @@ class CALVINSkillExtractor:
         """
         info_indx = self.episode_lookup[idx]
         start_file_indx = info_indx[0]
-        end_file_indx = info_indx[1] #+ 32
+        end_file_indx = info_indx[1] + 32
 
         lang_annotation = self.annotations_idx[idx]
 
@@ -285,7 +285,7 @@ def make_dataset(load_path, save_dir, step_len, multi_dir=False):
             
             episode_dict = generate_episode_dict(episode, extractor.annotations_idx[idx])
 
-            extractor.replay_buffer.add_episode_from_list(episode_dict, chunks=desired_chunks, compressors="disk") 
+            extractor.replay_buffer.add_episode_from_list(episode_dict, compressors="disk") #chunks=desired_chunks,
             # print(f"Saving episode for {skill}...")
             # np.savez(
             #     os.path.join(save_dir, f"{skill}.npz"),
@@ -315,7 +315,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--save_dir",
         type=str,
-        default="/home/choudhue/PolicyGuide/dataset/calvin_D_fullT_chunked_dataset",
+        default="/home/choudhue/PolicyGuide/dataset/calvin_D_fullT_extended32_dataset",
     )
     parser.add_argument("--step_len", type=int, default=1)
     parser.add_argument("--full", help="Use this flag to load both training and validation data.", action=argparse.BooleanOptionalAction)
