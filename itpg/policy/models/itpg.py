@@ -89,6 +89,8 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         self.latent_goal = None
         self.plan = None
 
+        self._wandb_watch_called = False
+
         # load language annotations if using encodings
         self.root_data_dir = root_data_dir
         if self.use_lang_encoding:
@@ -98,6 +100,9 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
 
     def configure_optimizers(self):
         optimizer = hydra.utils.instantiate(self.optimizer_config, params=self.parameters())
+        if not self._wandb_watch_called:
+            wandb.watch(self, log="all", log_freq=100)
+            self._wandb_watch_called = True 
         return optimizer
 
 
@@ -209,52 +214,52 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         return loss
 
 
-    def validation_step(self, batch: Dict[str, Dict], batch_idx: int) -> Dict[str, torch.Tensor]:  # type: ignore
-        """
-        Compute and log the validation losses and additional metrics.
+    # def validation_step(self, batch: Dict[str, Dict], batch_idx: int) -> Dict[str, torch.Tensor]:  # type: ignore
+    #     """
+    #     Compute and log the validation losses and additional metrics.
 
-        Args:
-            batch (dict):
-                - 'vis' (dict):
-                    - 'rgb_obs' (dict):
-                        - 'rgb_static' (Tensor): RGB camera image of static camera
-                        - ...
-                    - 'depth_obs' (dict):
-                        - 'depth_static' (Tensor): Depth camera image of depth camera
-                        - ...
-                    - 'robot_obs' (Tensor): Proprioceptive state observation.
-                    - 'actions' (Tensor): Ground truth actions.
-                    - 'state_info' (dict):
-                        - 'robot_obs' (Tensor): Unnormalized robot states.
-                        - 'scene_obs' (Tensor): Unnormalized scene states.
-                    - 'idx' (LongTensor): Episode indices.
-                - 'lang' (dict):
-                    Like 'vis' but with additional keys:
-                        - 'language' (Tensor): Embedded Language labels.
-                        - 'use_for_aux_lang_loss' (BoolTensor): Mask of which sequences in the batch to consider for
-                            auxiliary loss.
-            batch_idx (int): Integer displaying index of this batch.
+    #     Args:
+    #         batch (dict):
+    #             - 'vis' (dict):
+    #                 - 'rgb_obs' (dict):
+    #                     - 'rgb_static' (Tensor): RGB camera image of static camera
+    #                     - ...
+    #                 - 'depth_obs' (dict):
+    #                     - 'depth_static' (Tensor): Depth camera image of depth camera
+    #                     - ...
+    #                 - 'robot_obs' (Tensor): Proprioceptive state observation.
+    #                 - 'actions' (Tensor): Ground truth actions.
+    #                 - 'state_info' (dict):
+    #                     - 'robot_obs' (Tensor): Unnormalized robot states.
+    #                     - 'scene_obs' (Tensor): Unnormalized scene states.
+    #                 - 'idx' (LongTensor): Episode indices.
+    #             - 'lang' (dict):
+    #                 Like 'vis' but with additional keys:
+    #                     - 'language' (Tensor): Embedded Language labels.
+    #                     - 'use_for_aux_lang_loss' (BoolTensor): Mask of which sequences in the batch to consider for
+    #                         auxiliary loss.
+    #         batch_idx (int): Integer displaying index of this batch.
 
-        Returns:
-            Dictionary containing losses and the sampled plans of plan recognition and plan proposal networks.
-        """
-         # get text encodings or remove language
-        if self.use_lang_encoding:
-            encodings = []
-            for idx in batch["language"]:
-                ann = self.val_lang_annotations[int(idx[0])]
-                encodings.append(self.language_encoder.encode_text(ann)[0])
-            batch["observation.embedding"] = torch.stack(encodings).squeeze()
-        else:
-            batch.pop("language", None) 
+    #     Returns:
+    #         Dictionary containing losses and the sampled plans of plan recognition and plan proposal networks.
+    #     """
+    #      # get text encodings or remove language
+    #     if self.use_lang_encoding:
+    #         encodings = []
+    #         for idx in batch["language"]:
+    #             ann = self.val_lang_annotations[int(idx[0])]
+    #             encodings.append(self.language_encoder.encode_text(ann)[0])
+    #         batch["observation.embedding"] = torch.stack(encodings).squeeze()
+    #     else:
+    #         batch.pop("language", None) 
 
-        # Run validation on diffusion policy
-        loss = self.diffusion_policy.forward(batch)
+    #     # Run validation on diffusion policy
+    #     loss = self.diffusion_policy.forward(batch)
 
-        # log validation loss
-        self.log("valid/loss", loss, on_step=False, on_epoch=True)
+    #     # log validation loss
+    #     self.log("valid/loss", loss, on_step=False, on_epoch=True)
 
-        return loss
+    #     return loss
 
 
     def reset(self):

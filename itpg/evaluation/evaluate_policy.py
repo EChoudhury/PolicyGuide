@@ -140,7 +140,7 @@ class CustomModel(CalvinBaseModel):
         raise NotImplementedError
 
 
-def evaluate_policy(model, env, epoch, eval_log_dir=None, debug=False, create_plan_tsne=False, save_viz=False, viz_folder=None, curr_time=None):
+def evaluate_policy(model, env, epoch, eval_log_dir=None, debug=False, create_plan_tsne=False, save_viz=False, viz_folder=None, curr_time=None, full_eval=True):
     """
     Run this function to evaluate a model on the CALVIN challenge.
 
@@ -156,21 +156,29 @@ def evaluate_policy(model, env, epoch, eval_log_dir=None, debug=False, create_pl
         Dictionary with results
     """
     conf_dir = Path(__file__).absolute().parents[2] / "conf"
-    task_cfg = OmegaConf.load(conf_dir / "callbacks/rollout/tasks/new_playtable_tasks.yaml")
-    # task_cfg = OmegaConf.load(conf_dir / "callbacks/rollout/tasks/calvin_D_3T_tasks.yaml")
+
+    if full_eval:
+        task_cfg = OmegaConf.load(conf_dir / "callbacks/rollout/tasks/new_playtable_tasks.yaml")
+    else:
+        task_cfg = OmegaConf.load(conf_dir / "callbacks/rollout/tasks/calvin_D_3T_tasks.yaml")
+
     task_oracle = hydra.utils.instantiate(task_cfg)
-    val_annotations = OmegaConf.load(conf_dir / "annotations/new_playtable_validation.yaml")
-    # val_annotations = OmegaConf.load(conf_dir / "annotations/calvin_D_3T_validation.yaml")
+    
+    if full_eval:
+        val_annotations = OmegaConf.load(conf_dir / "annotations/new_playtable_validation.yaml")
+    else:
+        val_annotations = OmegaConf.load(conf_dir / "annotations/calvin_D_3T_validation.yaml")
 
     eval_log_dir = get_log_dir(eval_log_dir)
 
-    eval_sequences = get_sequences(NUM_SEQUENCES)
-
-    # Temporary hardcoded sequences for testing
-    # eval_sequences = [({'led': 0, 'lightbulb': 0, 'slider': 'left', 'drawer': 'closed', 'red_block': 'table', 'blue_block': 'slider_right', 'pink_block': 'slider_left', 'grasped': 0}, (('turn_on_lightbulb', 'open_drawer', 'turn_on_led'))),
-    #                   ({'led': 0, 'lightbulb': 0, 'slider': 'right', 'drawer': 'closed', 'red_block': 'slider_right', 'blue_block': 'slider_left', 'pink_block': 'table', 'grasped': 0}, (('open_drawer', 'turn_on_led', 'turn_on_lightbulb'))),
-    #                   ({'led': 0, 'lightbulb': 0, 'slider': 'right', 'drawer': 'closed', 'red_block': 'table', 'blue_block': 'slider_left', 'pink_block': 'table', 'grasped': 0}, (('turn_on_led', 'turn_on_lightbulb', 'open_drawer')))]
-    
+    if full_eval:
+        eval_sequences = get_sequences(NUM_SEQUENCES)
+    else:
+        # Temporary hardcoded sequences for testing
+        eval_sequences = [({'led': 0, 'lightbulb': 0, 'slider': 'left', 'drawer': 'closed', 'red_block': 'table', 'blue_block': 'slider_right', 'pink_block': 'slider_left', 'grasped': 0}, (('turn_on_lightbulb', 'open_drawer', 'turn_on_led'))),
+                        ({'led': 0, 'lightbulb': 0, 'slider': 'right', 'drawer': 'closed', 'red_block': 'slider_right', 'blue_block': 'slider_left', 'pink_block': 'table', 'grasped': 0}, (('open_drawer', 'turn_on_led', 'turn_on_lightbulb'))),
+                        ({'led': 0, 'lightbulb': 0, 'slider': 'right', 'drawer': 'closed', 'red_block': 'table', 'blue_block': 'slider_left', 'pink_block': 'table', 'grasped': 0}, (('turn_on_led', 'turn_on_lightbulb', 'open_drawer')))]
+        
     results = []
     plans = defaultdict(list)
 
@@ -392,6 +400,8 @@ def main():
 
     parser.add_argument("--save_viz", action="store_true", help="Save visualization of environment")
 
+    parser.add_argument("--full_eval", action="store_true", help="Save visualization of environment")
+
     parser.add_argument("--eval_log_dir", default=None, type=str, help="Where to log the evaluation results.")
 
     parser.add_argument("--device", default=0, type=int, help="CUDA device")
@@ -438,7 +448,8 @@ def main():
                             create_plan_tsne=False, 
                             save_viz=args.save_viz, 
                             viz_folder=args.train_folder, 
-                            curr_time=curr_time
+                            curr_time=curr_time,
+                            full_eval=args.full_eval,
                         )
 
 

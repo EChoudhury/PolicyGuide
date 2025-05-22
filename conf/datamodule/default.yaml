@@ -1,6 +1,6 @@
 defaults:
-  - datasets: policy_guide_dataset
-  - transforms: play_basic #basic_trans
+  - datasets: chunked_policy_guide_dataset
+  - transforms: play_basic
   - proprioception_dims: robot_no_joints 
   - observation_space: lang_rgb_static_gripper_abs_act
 _target_: itpg.datasets.policy_guide_data_module.PolicyGuideDataModule
