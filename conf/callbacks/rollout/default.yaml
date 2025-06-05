@@ -12,7 +12,7 @@ num_rollouts_per_task: 10
 check_percentage_of_batch: 1  # which percentage of sequences do we want to check for possible tasks
 ep_len: 15
 empty_cache: true
-log_video_to_file: false
+log_video_to_file: true
 save_dir: ./videos
 add_goal_thumbnail: true
 min_window_size: 16 #${datamodule.datasets.vision_dataset.min_window_size}

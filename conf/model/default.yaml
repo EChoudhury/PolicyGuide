@@ -7,9 +7,9 @@ _recursive_: false
 
 replan_freq: 1
 stats_path: null #/home/choudhue/PolicyGuide/dataset/calvin_debug_dataset/stats/dataset.pkl
-use_affordance: true
+use_affordance: false
 affordance_duration: 10
-use_lang_encoding: false
+use_lang_encoding: true
 root_data_dir: ${datamodule.root_data_dir}
 
 affordance_checkpoint:

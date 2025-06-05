@@ -6,6 +6,8 @@ import cv2
 from tqdm import tqdm 
 from typing import Any, Dict, Optional, Tuple
 
+import wandb
+
 from itpg.policy.models.calvin_base_model import CalvinBaseModel
 import hydra
 import numpy as np
@@ -42,6 +44,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         use_affordance: bool = False,
         affordance_duration: int = 10,
         use_lang_encoding: bool = True,
+        normalize_language_embeddings: bool = False,
     ):
         super(ITPG, self).__init__()
 
@@ -51,6 +54,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
 
         # language encoder toggle
         self.use_lang_encoding = use_lang_encoding
+        self.normalize_language_embeddings = normalize_language_embeddings
 
         # load stats dataset for normalization
         self.stats = self._get_stats(stats_path)
@@ -284,8 +288,13 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
 
         # get text encodings
         if self.use_lang_encoding:
-            converted_obs["observation.embedding"] = self.language_encoder.encode_text(goal)[0]
-
+            if self.normalize_language_embeddings:
+                # Normalize language embeddings
+                lang_embeds = self.language_encoder.encode_text(goal)[0]
+                converted_obs["observation.embedding"] = lang_embeds / lang_embeds.norm(dim=-1, keepdim=True)
+            else:
+                converted_obs["observation.embedding"] = self.language_encoder.encode_text(goal)[0]
+            
         # temporary hardcoded goal
         # goal = "use the switch to turn on the light bulb"
         # "pull the handle to open the drawer"
@@ -293,28 +302,34 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         # "use the switch to turn on the light bulb"
 
         padded_guide = None
+        out_img = None
+        pred_img = {"pred_pixel": None}
+        affordance_pixel = None
 
         # Use affordance model to get the guide
         if self.use_affordance:
             if self.rollout_step_counter % self.replan_freq == 0 and self.rollout_step_counter < self.affordance_duration:
-                frame = converted_obs["observation.image_static"][:,-1,...].detach().cpu().numpy()
+                frame = converted_obs["observation.image_static"][:,-1,...].detach().cpu().numpy().copy()
                 frame = frame.squeeze()
-                frame = (frame * 255.0).astype("uint8")
+                frame = ((frame + 1) * 0.5 * 255.0).astype("uint8")
                 frame = np.transpose(frame, (1, 2, 0))
                 frame = cv2.resize(frame, ([224, 224]))
                 affordance_obs = {"img": frame, "lang_goal": goal}
                 afford_pred = self.affordance_policy.predict(affordance_obs)
+                affordance_pixel = afford_pred["pixel"]
                 guide = self.camera.deproject_single_depth(afford_pred["pixel"], afford_pred["depth"])
                 padded_guide = np.concat((guide, last_action[3:]))
                 padded_guide = torch.tensor(padded_guide).cuda()
                 padded_guide = torch.unsqueeze(padded_guide, 0)
 
-        # padded_guide = None
+                # Visualize affordance predictions
+                out_img, pred_img = self.affordance_policy.get_preds_viz(affordance_obs, afford_pred)
+
         # Run inference on diffusion policy
         action = self.diffusion_policy.run_inference(converted_obs, guide=padded_guide)
 
         self.rollout_step_counter += 1
-        return action, padded_guide
+        return action, padded_guide, pred_img["pred_pixel"], affordance_pixel
 
     def load_lang_annotations(self, annotations_path):
         """

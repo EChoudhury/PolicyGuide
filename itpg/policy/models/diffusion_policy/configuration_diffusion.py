@@ -106,7 +106,7 @@ class DiffusionConfig:
             "observation.image_static": [3, 200, 200],
             "observation.image_wrist": [3, 200, 200],
             "observation.state": [8],
-            # "observation.embedding": [1024],
+            "observation.embedding": [1024],
         }
     )
     output_shapes: dict[str, list[int]] = field(
@@ -147,7 +147,7 @@ class DiffusionConfig:
     beta_end: float = 0.02
     prediction_type: str = "epsilon"
     clip_sample: bool = True
-    clip_sample_range: float = 5.0
+    clip_sample_range: float = 4.0
 
     # Inference
     num_inference_steps: int | None = None

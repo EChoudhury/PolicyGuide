@@ -109,8 +109,8 @@ class RolloutVideo:
         size = self.videos[-1].shape[-2:]
         i_h = int(size[0] / 3)
         i_w = int(size[1] / 3)
-        img = resize(_unnormalize(goal_img.detach().cpu()), [i_h, i_w])
-        self.videos[-1][:, self.sub_task_beginning :, ..., -i_h:, :i_w] = img
+        img = resize( _unnormalize(goal_img.detach().cpu()), [i_h, i_w])
+        self.videos[-1][:, self.sub_task_beginning :, ..., -i_h:, -i_w:] = img
 
     def add_language_instruction(self, instruction):
         img_text = np.zeros(self.videos[-1].shape[2:][::-1], dtype=np.uint8) + 127
@@ -217,7 +217,7 @@ class RolloutVideo:
         Mostly taken from WandB
         """
         for video, tag in zip(self.videos, self.tags):
-            video = video.unsqueeze(0)
+            # video = video.unsqueeze(0)
             video = np.clip(video.numpy() * 255, 0, 255).astype(np.uint8)
 
             mpy = wandb.util.get_module(

@@ -67,14 +67,19 @@ def collect_plan(model, plans, subtask):
         return
 
 
-def join_vis_lang(img, lang_text):
+def join_vis_lang(img, lang_text, headless=False):
     """Takes as input an image and a language instruction and visualizes them with cv2"""
-    img = img['rgb_static']
-    img = img[:, :, ::-1].copy()
-    img = cv2.resize(img, (500, 500))
-    add_text(img, lang_text)
-    cv2.imshow("simulation cam", img)
-    cv2.waitKey(1)
+    if headless:
+        temp_obs = img["rgb_obs"]["rgb_static"]
+        temp_obs = (temp_obs[:,0,...].copy() * 255).clamp(0, 255).byte().squeeze()
+        temp_obs = temp_obs.squeeze().permute(1, 2, 0).cpu().numpy()
+    else:
+        img = img['rgb_static']
+        img = img[:, :, ::-1].copy()
+        img = cv2.resize(img, (500, 500))
+        add_text(img, lang_text)
+        cv2.imshow("simulation cam", img)
+        cv2.waitKey(1)
 
 
 def count_success(results):
@@ -430,3 +435,48 @@ def get_env_state_for_initial_condition(initial_condition):
         scene_obs[23] = np.random.uniform(*block_rot_z_range)
 
     return robot_obs, scene_obs
+
+
+
+def draw_cross_marker_batch(img, center, color=(255, 255, 255), size=4, thickness=1):
+    """
+    Draw a '+' cross marker on a batched torch image tensor of shape (N, T, C, H, W),
+    converting the center pixel from an expected image size of (3, 224, 224) to the actual
+    image size (e.g. (3, 200, 200)).
+    
+    Args:
+        img: torch.Tensor of shape (N, T, C, H, W), dtype=torch.uint8
+        center: (x, y) coordinates (from a 224×224 image)
+        color: RGB color tuple (R, G, B)
+        size: half-length of the cross
+        thickness: line thickness in pixels
+    """
+    N, T, C, H, W = img.shape
+    # Assume expected dimensions are 224 x 224.
+    scale_x = W / 224.0
+    scale_y = H / 224.0
+
+    # Scale center coordinates from [224 x 224] to [W x H]
+    x0, y0 = center
+    x0 = int(round(x0 * scale_x))
+    y0 = int(round(y0 * scale_y))
+    
+    color_tensor = torch.tensor(color, dtype=img.dtype).view(1, 1, C, 1)
+
+    # Vertical line
+    for t_offset in range(-thickness // 2, thickness // 2 + 1):
+        x = x0 + t_offset
+        if 0 <= x < W:
+            y_start = max(0, y0 - size)
+            y_end = min(H, y0 + size + 1)
+            img[:, :, :, y_start:y_end, x] = color_tensor
+
+    # Horizontal line
+    for t_offset in range(-thickness // 2, thickness // 2 + 1):
+        y = y0 + t_offset
+        if 0 <= y < H:
+            x_start = max(0, x0 - size)
+            x_end = min(W, x0 + size + 1)
+            img[:, :, :, y, x_start:x_end] = color_tensor
+
+    return img
