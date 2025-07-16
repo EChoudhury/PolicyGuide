@@ -258,6 +258,18 @@ tasks = {
     ],
 }
 
+
+
+# ALLOWED_TASKS = {
+#     "open_drawer", "move_slider_left", "close_drawer", "turn_on_lightbulb", "turn_off_lightbulb",
+#     "move_slider_right", "turn_on_led", "turn_off_led", "lift_blue_block_drawer",
+#     "lift_red_block_drawer", "lift_pink_block_drawer", "lift_blue_block_table", "lift_red_block_table",
+#     "lift_blue_block_slider", "lift_red_block_slider", "lift_pink_block_slider", "unstack_block"
+# }
+
+# tasks = {k: v for k, v in tasks.items() if k in ALLOWED_TASKS}
+# task_categories = {k: v for k, v in task_categories.items() if k in ALLOWED_TASKS}
+
 # task_categories = {
 #     "open_drawer": 0,
 #     "turn_on_lightbulb": 1,
@@ -399,6 +411,7 @@ if __name__ == "__main__":
     counters = [Counter() for _ in range(5)]  # type: ignore
     for initial_state, seq in results:
         for i, task in enumerate(seq):
+            # assert all(task in ALLOWED_TASKS for task in tasks), "Found a task not in allowed set!"
             counters[i][task] += 1
 
     for i, counter in enumerate(counters):

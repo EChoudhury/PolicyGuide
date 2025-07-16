@@ -32,7 +32,7 @@ def get_default_model_and_env(train_folder, dataset_path, checkpoint, env=None, 
         hydra.initialize("../../conf/datamodule/datasets")
     # we don't want to use shm dataset for evaluation
     # datasets_cfg = hydra.compose("vision_lang.yaml", overrides=["lang_dataset.lang_folder=" + lang_folder])
-    datasets_cfg = hydra.compose("policy_guide_dataset.yaml", overrides=["lang_folder=" + lang_folder])
+    datasets_cfg = hydra.compose("chunked_policy_guide_dataset.yaml", overrides=["lang_folder=" + lang_folder])
     # since we don't use the trainer during inference, manually set up data_module
     cfg.datamodule.datasets = datasets_cfg
     cfg.datamodule.root_data_dir = dataset_path

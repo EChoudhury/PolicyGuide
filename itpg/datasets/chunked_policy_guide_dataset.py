@@ -61,6 +61,7 @@ class ChunkedPolicyGuideDataset(IterableDataset):
         # Load the replay buffer metadata
         self.replay_buffer = RobotReplayBuffer.create_from_path(self.datasets_dir, mode='r')
         self.total_size = len(self.replay_buffer.episode_ends)
+        # print(f'Total size: {self.total_size}')
         if self.shuffle_iter:
             self.episode_index = self.shuffle_episode_ids(self.total_size)
     

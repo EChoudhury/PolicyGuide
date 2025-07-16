@@ -14,7 +14,9 @@ from typing import Dict, List, Tuple, Union
 from tqdm import tqdm
 import datetime
 import json
-from itpg.datasets.utils.robot_replay_buffer import RobotReplayBuffer
+# from itpg.datasets.utils.robot_replay_buffer import RobotReplayBuffer
+import pickle
+import gzip
 # import torch
 
 logger = logging.getLogger(__name__)
@@ -46,7 +48,7 @@ class CALVINSkillExtractor:
         self.episode_lookup, self.annotations_idx = self.load_file_indices(self.data_dir, self.skill_name)
         self.naming_pattern, self.n_digits = self.lookup_naming_pattern()
         self.step_len = step_len
-        self.replay_buffer = RobotReplayBuffer.create_from_path(self.save_dir, mode="a")
+        # self.replay_buffer = RobotReplayBuffer.create_from_path(self.save_dir, mode="a")
 
     def __len__(self) -> int:
         return len(self.episode_lookup)
@@ -162,9 +164,11 @@ class CALVINSkillExtractor:
         all_eps_idx_part_task = [
             i for (i, v) in enumerate(data["language"]["task"]) if v == skill_name
         ]
-        # all_eps_idx_annotations = [
-        #     data["language"]["ann"][i] for i in all_eps_idx_part_task
-        # ]
+
+        all_eps_idx_annotations = [
+            data["language"]["ann"][i] for i in all_eps_idx_part_task
+        ]
+
         all_eps_start_end_part_task = [
             data["info"]["indx"][i] for i in all_eps_idx_part_task
         ]
@@ -175,7 +179,7 @@ class CALVINSkillExtractor:
         logger.info(
             f"Found {len(episode_lookup)} demonstrations of skill {skill_name}."
         )
-        return episode_lookup, all_eps_idx_part_task
+        return episode_lookup, all_eps_idx_annotations
 
 def generate_episode_dict(episode, language):
     eps_len = int(episode["robot_obs"].shape[0])
@@ -203,46 +207,46 @@ def make_dataset(load_path, save_dir, step_len, multi_dir=False):
 
     skill_list = [
         "open_drawer",
-        # "move_slider_left",
-        # "lift_pink_block_table",
-        # "push_pink_block_right",
-        # "close_drawer",
+        "move_slider_left",
+        "lift_pink_block_table",
+        "push_pink_block_right",
+        "close_drawer",
         "turn_on_lightbulb",
-        # "turn_off_lightbulb",
-        # "move_slider_right",
+        "turn_off_lightbulb",
+        "move_slider_right",
         "turn_on_led",
-        # "turn_off_led",
-        # "lift_blue_block_drawer",
-        # "lift_red_block_drawer",
-        # "lift_pink_block_drawer",
-        # "lift_blue_block_table",
-        # "lift_red_block_table",
-        # "lift_blue_block_slider",
-        # "lift_red_block_slider",
-        # "lift_pink_block_slider",
-        # "push_blue_block_left",
-        # "push_red_block_left",
-        # "push_pink_block_left",
-        # "push_blue_block_right",
-        # "push_red_block_right",
-        # "rotate_red_block_right",
-        # "rotate_red_block_left",
-        # "rotate_blue_block_right",
-        # "rotate_blue_block_left",
-        # "rotate_pink_block_right",
-        # "rotate_pink_block_left",
-        # "place_in_slider",
-        # "place_in_drawer",
-        # "stack_block",
-        # "unstack_block",
-        # "push_into_drawer",
+        "turn_off_led",
+        "lift_blue_block_drawer",
+        "lift_red_block_drawer",
+        "lift_pink_block_drawer",
+        "lift_blue_block_table",
+        "lift_red_block_table",
+        "lift_blue_block_slider",
+        "lift_red_block_slider",
+        "lift_pink_block_slider",
+        "push_blue_block_left",
+        "push_red_block_left",
+        "push_pink_block_left",
+        "push_blue_block_right",
+        "push_red_block_right",
+        "rotate_red_block_right",
+        "rotate_red_block_left",
+        "rotate_blue_block_right",
+        "rotate_blue_block_left",
+        "rotate_pink_block_right",
+        "rotate_pink_block_left",
+        "place_in_slider",
+        "place_in_drawer",
+        "stack_block",
+        "unstack_block",
+        "push_into_drawer",
     ]
     data_to_extract = [
-        "robot_obs",
-        "episode_step",
+        # "robot_obs",
+        # "episode_step",
         "actions",
-        "rgb_static",
-        "rgb_gripper",
+        # "rgb_static",
+        # "rgb_gripper",
         "language",
     ]
 
@@ -251,6 +255,10 @@ def make_dataset(load_path, save_dir, step_len, multi_dir=False):
         "data": data_to_extract,
         "skills": skill_list,
     }
+
+    ann_to_id = {}
+
+    id_to_actions = {}
 
     for skill in tqdm(skill_list, disable=True):
         logger.info(f"Extracting data for skill: {skill}")
@@ -272,20 +280,42 @@ def make_dataset(load_path, save_dir, step_len, multi_dir=False):
 
         for idx in tqdm(range(len(extractor))):
             episode = extractor[idx]
-            
-            episode_dict = generate_episode_dict(episode, extractor.annotations_idx[idx])
+            ann = extractor.annotations_idx[idx]
+            print(ann)
+            # add annotations to id dictionary
+            if ann not in ann_to_id:
+                ann_to_id[ann] = skill
 
-            extractor.replay_buffer.add_episode_from_list(episode_dict, compressors="disk")
+            if skill not in id_to_actions:
+                id_to_actions[skill] = [episode["actions"]]
+            else:
+                id_to_actions[skill].append(episode["actions"])
+
+            # episode_dict = generate_episode_dict(episode, ann)
+
+            # extractor.replay_buffer.add_episode_from_list(episode_dict, compressors="disk")
             # print(f"Saving episode for {skill}...")
-            # np.savez(
-            #     os.path.join(save_dir, f"{skill}.npz"),
-            #     states=states,
-            #     actions=actions,
-            #     traj_lengths=traj_lengths.astype(int),
-            #     rgb_statics=rgb_statics,
-            #     rgb_grippers=rgb_grippers,
-            # )
-    
+    # np.savez(
+    #     os.path.join(save_dir, f"{skill}.npz"),
+    #     states=states,
+    #     actions=actions,
+    #     traj_lengths=traj_lengths.astype(int),
+    #     rgb_statics=rgb_statics,
+    #     rgb_grippers=rgb_grippers,
+    # )
+
+    # Define file paths within save_dir
+    ann_to_id_path = os.path.join(save_dir, "ann_to_id.pkl.gz")
+    id_to_actions_path = os.path.join(save_dir, "id_to_actions.pkl.gz")
+
+    # Save ann_to_id dictionary to a compressed file
+    with gzip.open(ann_to_id_path, 'wb') as f:
+        pickle.dump(ann_to_id, f)
+
+    # Save id_to_actions dictionary to a separate compressed file
+    with gzip.open(id_to_actions_path, 'wb') as f:
+        pickle.dump(id_to_actions, f)
+
     path = os.path.join(save_dir, "info.json")
     if not os.path.isfile(path):
         with open(path, 'w') as f:
@@ -305,7 +335,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--save_dir",
         type=str,
-        default="/home/choudhue/PolicyGuide/dataset/calvin_D_3T_dataset",
+        default="/home/choudhue/PolicyGuide/dataset/calvin_D_fullT_dataset",
     )
     parser.add_argument("--step_len", type=int, default=1)
     parser.add_argument("--full", help="Use this flag to load both training and validation data.", action=argparse.BooleanOptionalAction)
@@ -317,11 +347,11 @@ if __name__ == "__main__":
     if args.full:
         # Load training data
         load_path = os.path.join(args.load_path, "training")
-        save_dir = os.path.join(args.save_dir, "training")
+        save_dir = os.path.join(args.save_dir, "training/trajectories")
         make_dataset(load_path, save_dir, args.step_len, args.multi)
         # Load validation data
         load_path = os.path.join(args.load_path, "validation")
-        save_dir = os.path.join(args.save_dir, "validation")
+        save_dir = os.path.join(args.save_dir, "validation/trajectories")
         make_dataset(load_path, save_dir, args.step_len, args.multi)
     else:
         make_dataset(args.load_path, args.save_dir, args.step_len, args.multi)

@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from transformers import BertConfig, BertModel, BertTokenizer
+from torch.amp import autocast
 
 from itpg.affordance.models.language_encoders.base_lang_encoder import LangEncoder
 
@@ -20,14 +21,15 @@ class BERTLang(LangEncoder):
         self.text_fc = nn.Linear(_embd_dim, 1024)
 
     def encode_text(self, x):
-        with torch.set_grad_enabled(not self.freeze_backbone):
-            inputs = self.tokenizer(x, return_tensors="pt", padding=True, truncation=True)
-            input_ids, attention_mask = inputs["input_ids"], inputs["attention_mask"]
-            input_ids = input_ids.to(self.text_encoder.device)
-            attention_mask = attention_mask.to(self.text_encoder.device)
-            text_embeddings = self.text_encoder(input_ids, attention_mask)
-            text_encodings = text_embeddings.last_hidden_state.mean(1)
-
-        text_feat = self.text_fc(text_encodings)
-        text_mask = torch.ones_like(input_ids)  # [1, max_token_len]
+        with torch.no_grad(): #torch.set_grad_enabled(not self.freeze_backbone):
+            with autocast("cuda"):
+                inputs = self.tokenizer(x, return_tensors="pt", padding=True, truncation=True)
+                input_ids, attention_mask = inputs["input_ids"], inputs["attention_mask"]
+                input_ids = input_ids.to(self.text_encoder.device)
+                attention_mask = attention_mask.to(self.text_encoder.device)
+                text_embeddings = self.text_encoder(input_ids, attention_mask)
+                text_encodings = text_embeddings.last_hidden_state.mean(1)
+            
+            text_feat = self.text_fc(text_encodings)
+            text_mask = torch.ones_like(input_ids)  # [1, max_token_len]
         return text_feat, text_embeddings.last_hidden_state, text_mask

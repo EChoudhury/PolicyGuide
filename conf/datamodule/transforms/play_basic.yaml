@@ -109,3 +109,5 @@ val:
     - _target_: itpg.utils.transforms.NormalizeVector
   scene_obs:
     - _target_: itpg.utils.transforms.NormalizeVector
+  guide:
+    - _target_: itpg.utils.transforms.NormalizeVector

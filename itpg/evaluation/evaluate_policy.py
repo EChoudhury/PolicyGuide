@@ -31,6 +31,7 @@ from itpg.evaluation.utils import (
     visualize_point_policy,
     draw_cross_marker_batch,
 )
+from itpg.datasets.utils.episode_utils import process_state
 from itpg.utils.utils import get_all_checkpoints, get_checkpoints_for_epochs, get_last_checkpoint
 from itpg.rollout.rollout_video import RolloutVideo
 import hydra
@@ -47,7 +48,7 @@ from calvin_env.envs.play_table_env import get_env
 logger = logging.getLogger(__name__)
 
 EP_LEN = 45  # 8 actions step
-NUM_SEQUENCES = 1000
+NUM_SEQUENCES = 200
 
 
 def get_epoch(checkpoint):
@@ -92,8 +93,8 @@ def save_images_and_create_gif(images: List[np.ndarray], save_dir: str, gif_name
         for img_path in image_paths:
             writer.append_data(imageio.v2.imread(img_path))
     
-    # for img_path in image_paths:
-    #     os.remove(img_path)
+    for img_path in image_paths:
+        os.remove(img_path)
 
     print(f"GIF saved at {gif_path}")
 
@@ -145,7 +146,7 @@ class CustomModel(CalvinBaseModel):
         raise NotImplementedError
 
 
-def evaluate_policy(model, env, epoch, eval_log_dir=None, debug=False, create_plan_tsne=False, save_viz=False, viz_folder=None, curr_time=None, full_eval=True):
+def evaluate_policy(model, env, epoch, eval_log_dir=None, debug=False, create_plan_tsne=False, save_viz=False, viz_folder=None, curr_time=None, full_eval=True, data_module=None):
     """
     Run this function to evaluate a model on the CALVIN challenge.
 
@@ -192,7 +193,7 @@ def evaluate_policy(model, env, epoch, eval_log_dir=None, debug=False, create_pl
 
     for initial_state, eval_sequence in eval_sequences:
         with torch.amp.autocast('cuda'):
-            result = evaluate_sequence(env, model, task_oracle, initial_state, eval_sequence, val_annotations, plans, debug, save_viz, viz_folder, curr_time)
+            result = evaluate_sequence(env, model, task_oracle, initial_state, eval_sequence, val_annotations, plans, debug, save_viz, viz_folder, curr_time, data_module)
         results.append(result)
         if not debug:
             eval_sequences.set_description(
@@ -206,7 +207,8 @@ def evaluate_policy(model, env, epoch, eval_log_dir=None, debug=False, create_pl
     return results
 
 
-def evaluate_sequence(env, model, task_checker, initial_state, eval_sequence, val_annotations, plans, debug, save_viz, viz_folder, curr_time):
+def evaluate_sequence(env, model, task_checker, initial_state, eval_sequence, val_annotations, 
+                      plans, debug, save_viz, viz_folder, curr_time, data_module):
     """
     Evaluates a sequence of language instructions.
     """
@@ -231,7 +233,9 @@ def evaluate_sequence(env, model, task_checker, initial_state, eval_sequence, va
         print(f"Evaluating sequence: {' -> '.join(eval_sequence)}")
         print("Subtask: ")
     for subtask in eval_sequence:
-        success = rollout(env, model, task_checker, subtask, val_annotations, plans, debug, save_viz, viz_folder, curr_time, rollout_video)
+        success = rollout(env, model, task_checker, subtask, val_annotations, 
+                          plans, debug, save_viz, viz_folder, curr_time, 
+                          rollout_video, data_module)
         if success:
             success_counter += 1
         else:
@@ -263,7 +267,8 @@ def combine_observations(observations: List[Dict[str, torch.Tensor]]) -> Dict[st
     return merged
 
 
-def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug, save_viz, viz_folder, curr_time, rollout_video):
+def rollout(env, model, task_oracle, subtask, val_annotations, plans, 
+            debug, save_viz, viz_folder, curr_time, rollout_video, data_module):
     """
     Run the actual rollout on one subtask (which is one natural language instruction).
     """
@@ -294,8 +299,8 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug, sav
         guide = None
         
         # action = model.step(combined_obs, lang_annotation)
-        action, guide, aff_pred, pixels = model.step(combined_obs, lang_annotation, last_action)
-        
+        action, guide, aff_pred, pixels = model.step(combined_obs, lang_annotation, last_action, subtask, data_module)
+
         if aff_pred is not None:
             aff_pred = (aff_pred * 255).astype("uint8")
             affs.append(aff_pred)
@@ -306,7 +311,7 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug, sav
             obs, _, _, current_info = env.step(action[:,i,...])
             # print(f'Observation: {obs["rgb_obs"]["rgb_static"].shape},\n') #Action: {action[:,i,...]}\n\n")
             obs_history = obs_history[-1:]
-            obs_history.append(obs)        
+            obs_history.append(obs)    
 
             if debug:
                 if save_viz:
@@ -344,6 +349,7 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans, debug, sav
     if debug:
         print(colored("task failed", "red"), end=" \n")
         if save_viz:
+
             # save images for gif
             save_dir = os.path.join(viz_folder, f"eval_viz_{curr_time}")
             sequence_time = time.strftime("%Y%m%d_%H%M%S")
@@ -426,7 +432,7 @@ def main():
         env = None
         for checkpoint in checkpoints:
             epoch = get_epoch(checkpoint)
-            model, env, _ = get_default_model_and_env(
+            model, env, data_module = get_default_model_and_env(
                 args.train_folder,
                 args.dataset_path,
                 checkpoint,
@@ -443,6 +449,7 @@ def main():
                             viz_folder=args.train_folder, 
                             curr_time=curr_time,
                             full_eval=args.full_eval,
+                            data_module=data_module
                         )
 
 

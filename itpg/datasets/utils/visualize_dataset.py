@@ -14,7 +14,7 @@ import time
 @hydra.main(config_path="/home/choudhue/PolicyGuide/conf/datamodule", config_name="default")
 def visualize_dataset(cfg: DictConfig, gui=True) -> None:
     # Path to the Zarr dataset
-    zarr_path = "/home/choudhue/PolicyGuide/dataset/calvin_D_fullT_dataset"
+    zarr_path = "/home/choudhue/PolicyGuide/dataset/calvin_D_3T_dataset"
 
     # Initialize the PolicyGuideDataset
     print("Loading dataset...")
@@ -30,18 +30,18 @@ def visualize_dataset(cfg: DictConfig, gui=True) -> None:
     annotations = np.load(zarr_path + "/training/lang_annotations/auto_lang_ann.npy", allow_pickle=True).reshape(-1)[0]['language']['ann']
 
     # Print the total number of samples in the dataset
-    print(f"Total samples in dataset: {len(dataset)}")
+    # print(f"Total samples in dataset: {len(dataset)}")
 
     # Create a single OpenCV window
     static_win = "Static Camera"
     gripper_win = "Gripper Camera"
-    # if gui:
-    #     cv2.namedWindow(static_win)
-    #     cv2.namedWindow(gripper_win)
-    # else:
-    #     images = []
-    #     labels = []
-    #     gif_name = ""
+    if gui:
+        cv2.namedWindow(static_win)
+        cv2.namedWindow(gripper_win)
+    else:
+        images = []
+        labels = []
+        gif_name = ""
 
     # Iterate through the dataset and visualize the images
     for idx, batch in enumerate(dataset):
@@ -55,15 +55,15 @@ def visualize_dataset(cfg: DictConfig, gui=True) -> None:
             img_gripper = batch["observation.image_wrist"][i,1, ...] # Shape: (height, width, channels)
 
             # # Convert the image to a format suitable for OpenCV
-            # img = img.permute(1, 2, 0)  # Convert from (C, H, W) to (H, W, C)
-            # img = (img * 255).clamp(0, 255).byte().cpu().numpy().astype(np.uint8) # Scale to [0, 255] and convert to uint8
+            img = img.permute(1, 2, 0)  # Convert from (C, H, W) to (H, W, C)
+            img = (img * 255).clamp(0, 255).byte().cpu().numpy().astype(np.uint8) # Scale to [0, 255] and convert to uint8
 
             # img2 = img2.permute(1, 2, 0)  # Convert from (C, H, W) to (H, W, C)
             # img2 = (img2 * 255).clamp(0, 255).byte().cpu().numpy().astype(np.uint8) # Scale to [0, 255] and convert to uint8
 
             # # Convert the image to a format suitable for OpenCV
-            # img_gripper = img_gripper.permute(1, 2, 0)  # Convert from (C, H, W) to (H, W, C)
-            # img_gripper = (img_gripper * 255).clamp(0, 255).byte().cpu().numpy().astype(np.uint8) # Scale to [0, 255] and convert to uint8
+            img_gripper = img_gripper.permute(1, 2, 0)  # Convert from (C, H, W) to (H, W, C)
+            img_gripper = (img_gripper * 255).clamp(0, 255).byte().cpu().numpy().astype(np.uint8) # Scale to [0, 255] and convert to uint8
 
             action = batch["action"]  # Shape: (8,)
             action_one = batch["action"][0]
@@ -72,14 +72,14 @@ def visualize_dataset(cfg: DictConfig, gui=True) -> None:
             language = annotations[ann_idx] # Shape: (sequence_length,)
 
             # Display the image in the same OpenCV window
-            # if gui:
-            #     cv2.imshow(static_win, img)
-            #     cv2.imshow(gripper_win, img_gripper)
-            # else:
-            #     images.append(img)
-            #     labels.append(language + "_1")
-            #     images.append(img2)
-            #     labels.append(language + "_2")
+            if gui:
+                cv2.imshow(static_win, img)
+                cv2.imshow(gripper_win, img_gripper)
+            else:
+                images.append(img)
+                labels.append(language + "_1")
+                images.append(img2)
+                labels.append(language + "_2")
             # Raw Data  
             # print(f"Sample {idx}: \nAction: {action}, \nState: {state}, \nLanguage: {language}\n\n")
             # gif_name = f"{idx}_{i}"

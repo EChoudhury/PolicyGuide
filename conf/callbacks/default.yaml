@@ -4,3 +4,4 @@ defaults:
   - checkpoint: every_100
   # - tsne_plot: default
   # - kl_schedule: constant
+  - debugger: nan_detector

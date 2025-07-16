@@ -1,15 +1,15 @@
 defaults:
   - optimizer: adam
-  - language_encoder: bert
+  - language_encoder: sbert
 
 _target_: itpg.policy.models.itpg.ITPG
 _recursive_: false
 
 replan_freq: 1
 stats_path: null #/home/choudhue/PolicyGuide/dataset/calvin_debug_dataset/stats/dataset.pkl
-use_affordance: false
+use_affordance: true
 affordance_duration: 10
-use_lang_encoding: true
+use_lang_encoding: false
 root_data_dir: ${datamodule.root_data_dir}
 
 affordance_checkpoint:

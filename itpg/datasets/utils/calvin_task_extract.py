@@ -110,7 +110,7 @@ class CALVINSkillExtractor:
         """
         info_indx = self.episode_lookup[idx]
         start_file_indx = info_indx[0]
-        end_file_indx = info_indx[1] + 32
+        end_file_indx = info_indx[1]
 
         lang_annotation = self.annotations_idx[idx]
 
@@ -204,8 +204,8 @@ def make_dataset(load_path, save_dir, step_len, multi_dir=False):
     skill_list = [
         "open_drawer",
         "move_slider_left",
-        # "lift_pink_block_table",
-        # "push_pink_block_right",
+        "lift_pink_block_table",
+        "push_pink_block_right",
         "close_drawer",
         "turn_on_lightbulb",
         "turn_off_lightbulb",
@@ -220,22 +220,22 @@ def make_dataset(load_path, save_dir, step_len, multi_dir=False):
         "lift_blue_block_slider",
         "lift_red_block_slider",
         "lift_pink_block_slider",
-        # "push_blue_block_left",
-        # "push_red_block_left",
-        # "push_pink_block_left",
-        # "push_blue_block_right",
-        # "push_red_block_right",
-        # "rotate_red_block_right",
-        # "rotate_red_block_left",
-        # "rotate_blue_block_right",
-        # "rotate_blue_block_left",
-        # "rotate_pink_block_right",
-        # "rotate_pink_block_left",
-        # "place_in_slider",
-        # "place_in_drawer",
-        # "stack_block",
+        "push_blue_block_left",
+        "push_red_block_left",
+        "push_pink_block_left",
+        "push_blue_block_right",
+        "push_red_block_right",
+        "rotate_red_block_right",
+        "rotate_red_block_left",
+        "rotate_blue_block_right",
+        "rotate_blue_block_left",
+        "rotate_pink_block_right",
+        "rotate_pink_block_left",
+        "place_in_slider",
+        "place_in_drawer",
+        "stack_block",
         "unstack_block",
-        # "push_into_drawer",
+        "push_into_drawer",
     ]
     data_to_extract = [
         "robot_obs",
@@ -280,7 +280,10 @@ def make_dataset(load_path, save_dir, step_len, multi_dir=False):
             step_len=step_len,
         )
 
-        for idx in tqdm(range(len(extractor))):
+        # for idx in tqdm(range(len(extractor))):
+        extract_num = min(30, len(extractor))  # Limit to 30 episodes for testing
+        print(f"Extracting {extract_num} episodes for skill: {skill}")
+        for idx in tqdm(range(extract_num)):
             episode = extractor[idx]
             
             episode_dict = generate_episode_dict(episode, extractor.annotations_idx[idx])
@@ -315,7 +318,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--save_dir",
         type=str,
-        default="/home/choudhue/PolicyGuide/dataset/calvin_D_CPT_ext32_dataset",
+        default="/home/choudhue/PolicyGuide/dataset/calvin_D_FullT30_dataset",
     )
     parser.add_argument("--step_len", type=int, default=1)
     parser.add_argument("--full", help="Use this flag to load both training and validation data.", action=argparse.BooleanOptionalAction)
