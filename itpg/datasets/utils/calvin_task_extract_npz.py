@@ -278,7 +278,7 @@ def make_dataset(load_path, save_dir, step_len, multi_dir=False):
             step_len=step_len,
         )
 
-        for idx in tqdm(range(len(extractor))):
+        for idx in tqdm(range(1)): #len(extractor)
             episode = extractor[idx]
             ann = extractor.annotations_idx[idx]
             print(ann)
@@ -347,11 +347,11 @@ if __name__ == "__main__":
     if args.full:
         # Load training data
         load_path = os.path.join(args.load_path, "training")
-        save_dir = os.path.join(args.save_dir, "training/trajectories")
+        save_dir = os.path.join(args.save_dir, "training/single_trajectories")
         make_dataset(load_path, save_dir, args.step_len, args.multi)
         # Load validation data
         load_path = os.path.join(args.load_path, "validation")
-        save_dir = os.path.join(args.save_dir, "validation/trajectories")
+        save_dir = os.path.join(args.save_dir, "validation/single_trajectories")
         make_dataset(load_path, save_dir, args.step_len, args.multi)
     else:
         make_dataset(args.load_path, args.save_dir, args.step_len, args.multi)

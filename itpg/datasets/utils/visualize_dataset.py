@@ -14,7 +14,7 @@ import time
 @hydra.main(config_path="/home/choudhue/PolicyGuide/conf/datamodule", config_name="default")
 def visualize_dataset(cfg: DictConfig, gui=True) -> None:
     # Path to the Zarr dataset
-    zarr_path = "/home/choudhue/PolicyGuide/dataset/calvin_D_3T_dataset"
+    zarr_path = "/home/choudhue/PolicyGuide/dataset/calvin_D_play_dataset"
 
     # Initialize the PolicyGuideDataset
     print("Loading dataset...")
@@ -27,7 +27,7 @@ def visualize_dataset(cfg: DictConfig, gui=True) -> None:
 
     print("Loading annotations...")
     # load annotations from training folder
-    annotations = np.load(zarr_path + "/training/lang_annotations/auto_lang_ann.npy", allow_pickle=True).reshape(-1)[0]['language']['ann']
+    # annotations = np.load(zarr_path + "/training/lang_annotations/auto_lang_ann.npy", allow_pickle=True).reshape(-1)[0]['language']['ann']
 
     # Print the total number of samples in the dataset
     # print(f"Total samples in dataset: {len(dataset)}")
@@ -68,8 +68,8 @@ def visualize_dataset(cfg: DictConfig, gui=True) -> None:
             action = batch["action"]  # Shape: (8,)
             action_one = batch["action"][0]
             state = batch["observation.state"] # Shape: (8,)
-            ann_idx = int(batch["language"][0])
-            language = annotations[ann_idx] # Shape: (sequence_length,)
+            # ann_idx = int(batch["language"][0])
+            # language = annotations[ann_idx] # Shape: (sequence_length,)
 
             # Display the image in the same OpenCV window
             if gui:
@@ -83,14 +83,14 @@ def visualize_dataset(cfg: DictConfig, gui=True) -> None:
             # Raw Data  
             # print(f"Sample {idx}: \nAction: {action}, \nState: {state}, \nLanguage: {language}\n\n")
             # gif_name = f"{idx}_{i}"
-            gif_name = language
+            # gif_name = language
             
             # Wait for a short duration or until 'q' is pressed
             if gui:
                 if cv2.waitKey(100) & 0xFF == ord('q'):  # 100ms delay
                     break
         # save images for gif
-        print(f"{gif_name}_{idx}")
+        print(f"End of batch_{idx}")
         if not gui:
             save_images_and_create_gif(images, gif_name=f"{gif_name}_{idx}.gif")
             images = []

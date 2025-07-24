@@ -34,6 +34,11 @@ from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
 from huggingface_hub import PyTorchModelHubMixin
 from torch import Tensor, nn
 import os
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from datetime import datetime
+import time
+from scipy.spatial.transform import Rotation as R
 
 import itpg
 from itpg.policy.models.diffusion_policy.configuration_diffusion import DiffusionConfig
@@ -100,7 +105,7 @@ class DiffusionPolicy(nn.Module, PyTorchModelHubMixin):
         return set(self.config.input_shapes)
 
     @torch.no_grad
-    def run_inference(self, observation_batch: dict[str, Tensor], guide: Tensor | None = None, visualizer=None, multi=False) -> Tensor:
+    def run_inference(self, observation_batch: dict[str, Tensor], guide: Tensor | None = None, visualizer=None, multi=False, guide_mode=None) -> Tensor:
         if self.dataset_stats:
             print("Is being normalized")
             observation_batch = self.normalize_inputs(observation_batch)
@@ -110,7 +115,7 @@ class DiffusionPolicy(nn.Module, PyTorchModelHubMixin):
             observation_batch["observation.images"] = torch.stack(
                 [observation_batch[k] for k in self.expected_image_keys], dim=-4
             )
-        actions = self.diffusion.generate_actions(observation_batch, guide=guide, visualizer=visualizer, normalizer=self, multi=multi)
+        actions = self.diffusion.generate_actions(observation_batch, guide=guide, visualizer=visualizer, normalizer=self, multi=multi, guide_mode=guide_mode)
         if self.dataset_stats:
             actions = self.unnormalize_outputs({"action": actions})["action"]
         return actions
@@ -178,6 +183,16 @@ class DiffusionModel(nn.Module):
             prediction_type=config.prediction_type,
         )
 
+        self.rejection_sampling = True
+        self.visualize_trajectories = True
+        self.use_ITPS = False
+
+        print("######### Rejection Sampling Info #########")
+        print(f"Using ITPS: {self.use_ITPS}")
+        print(f"Rejection Sampling: {self.rejection_sampling}")
+        print(f"Visualize Trajectories: {self.visualize_trajectories}")
+        print("##########################################")
+
         if config.num_inference_steps is None:
             self.num_inference_steps = self.noise_scheduler.config.num_train_timesteps
         else:
@@ -188,10 +203,27 @@ class DiffusionModel(nn.Module):
 
     # ========= inference  ============
     def conditional_sample(
-        self, batch_size: int, global_cond: Tensor | None = None, generator: torch.Generator | None = None, guide: Tensor | None = None, visualizer=None, normalizer=None, multi=False
+        self, batch_size: int, global_cond: Tensor | None = None, generator: torch.Generator | None = None, guide: Tensor | None = None, visualizer=None, normalizer=None, multi=False, guide_mode=None,
     ) -> Tensor:
         device = get_device_from_parameters(self)
         dtype = get_dtype_from_parameters(self)
+
+        if self.rejection_sampling and guide is not None:               
+            original_batch_size = batch_size
+            batch_size = 64
+            if original_batch_size == 1:
+                global_cond = global_cond.repeat(batch_size, 1)
+                #randomize the values from global_cond[:, :7] and global_cond[:, 136:143] for each sample
+                global_cond[:, :8] = global_cond[:, :8] + torch.randn(batch_size, 8, dtype=dtype, device=device) * 0.1
+                global_cond[:, 136:144] = global_cond[:, 136:144] + torch.randn(batch_size, 8, dtype=dtype, device=device) * 0.1
+
+            if guide_mode == "trajectory" or guide_mode == "path":
+                guide = guide.unsqueeze(0)
+                guide = guide.repeat(batch_size, 1, 1)
+            else:
+                guide = guide.repeat(batch_size, 1)
+
+        best_sample_idx = None
 
         # Sample prior.
         sample = torch.randn(
@@ -211,7 +243,7 @@ class DiffusionModel(nn.Module):
         self.noise_scheduler.set_timesteps(self.num_inference_steps)
 
         MCMC_steps = 1
-        if guide is not None and self.alignment_strategy == 'stochastic-sampling':
+        if guide is not None and self.alignment_strategy == 'stochastic-sampling' and self.use_ITPS:
             MCMC_steps = 4
 
         start_influence_step = self.config.num_train_timesteps
@@ -222,12 +254,9 @@ class DiffusionModel(nn.Module):
         if self.alignment_strategy in ['guided-diffusion', 'stochastic-sampling']:
             final_influence_step = 0 
 
+        start = time.perf_counter()
+
         for t in self.noise_scheduler.timesteps:
-            if visualizer is not None and normalizer is not None:
-                sample_viz = normalizer.unnormalize_outputs({"action": sample.clone().detach()})["action"]
-                sample_viz = sample_viz.cpu().numpy()
-                visualizer.update_screen(sample_viz, keep_drawing=True)
-                time.sleep(0.1)
 
             if t > start_influence_step:
                 # print('SKIPPING TIMESTEP: ', t)
@@ -241,13 +270,8 @@ class DiffusionModel(nn.Module):
                 )
 
                 # add interaction gradient
-                if guide is not None and t > final_influence_step:
-                    if multi:
-                        grad = torch.zeros_like(model_output)
-                        for point in guide:
-                            grad += self.guide_gradient(sample, torch.unsqueeze(point, 0))
-                    else:
-                        grad = self.guide_gradient(sample, guide)
+                if guide is not None and t > final_influence_step and self.use_ITPS:
+                    grad = self.guide_gradient(sample, guide, guide_mode)
                     if self.alignment_strategy == 'guided-diffusion':
                         guide_ratio = 20 
                     elif self.alignment_strategy == 'stochastic-sampling':
@@ -258,7 +282,7 @@ class DiffusionModel(nn.Module):
                 else:
                     pass
                     # print('NOT ADDING INTERACTION GRADIENT AT TIMESTEP: ', t)
-
+                
                 # Compute previous image: x_t -> x_t-1
                 scheduler_output = self.noise_scheduler.step(model_output, t, sample, generator=generator)
                 prev_sample = scheduler_output.prev_sample
@@ -273,9 +297,96 @@ class DiffusionModel(nn.Module):
                     # print('final diffusion step at t:', t)
                     sample = prev_sample
 
-        return sample
+        end = time.perf_counter()
+        print(f"ITPS - Execution time: {end - start:.6f} seconds")
+        
+        start = time.perf_counter()
+
+        if self.rejection_sampling and guide is not None:
+            # After generating a batch of samples, select the best one.
+            # Compare the last action of each sample to the last action of the guide.
+            if guide_mode == "trajectory" or guide_mode == "path":
+                # compare all points in trajectories with all points in guide
+                last_actions = sample[:, :16, :]
+                last_guide_action = guide
+            else:
+                last_actions = sample[:, -1, :3]  # (B, action_dim)
+                last_guide_action = guide[-1, :3]  # (action_dim)
+
+            all_traj = sample
+
+            # Calculate L2 distance.
+            distances = torch.linalg.norm(last_actions - last_guide_action, dim=-1)  # (B,)
+            
+            # find index of best sample with minimum total distance
+            if guide_mode == "trajectory":
+                distances = torch.sum(distances, dim=-1)
+                
+            # Find the index of the sample with the minimum distance.
+            best_sample_idx = torch.argmin(distances)
+            
+            # Select the best sample and restore the original batch dimension.
+            sample = sample[best_sample_idx].unsqueeze(0) 
+
+            if self.visualize_trajectories:
+                all_traj = all_traj.clone().detach().cpu().numpy()
+                curr_guide = guide.clone().detach().cpu().numpy()
+                fig = plt.figure(figsize=(12, 10))
+                ax = fig.add_subplot(111, projection='3d')
+
+                # Plot all 64 generated trajectories
+                for i in range(all_traj.shape[0]):
+                    traj = all_traj[i]
+                    ax.plot(traj[:, 0], traj[:, 1], traj[:, 2], color='blue', alpha=0.15, label='Candidates' if i == 0 else "")
+
+                # Highlight the chosen trajectory
+                chosen_traj = all_traj[best_sample_idx]
+                ax.plot(chosen_traj[:, 0], chosen_traj[:, 1], chosen_traj[:, 2], color='green', linewidth=2.5, label='Chosen Trajectory')
+
+                if guide_mode == "trajectory" or guide_mode == "path":
+                    axis_length = 0.01
+                    for i in range(curr_guide.shape[1]):  # assuming all_actions contains Euler angles per timestep
+                        r = R.from_euler('xyz', curr_guide[0, i, 3:6])
+                        rot_matrix = r.as_matrix()
+                        for j, color in zip(range(3), ['r', 'g', 'b']):
+                            ax.quiver(curr_guide[0, i, 0], curr_guide[0, i, 1], curr_guide[0, i, 2],
+                                    rot_matrix[0, j], rot_matrix[1, j], rot_matrix[2, j],
+                                    length=axis_length, color=color, alpha=0.25)
+
+                    ax.plot(curr_guide[0, :, 0], curr_guide[0, :, 1], curr_guide[0, :, 2], color='red', linewidth=2.5, marker='x', markersize=5, label='Guide')
+                else:
+                    # Plot the guide trajectory
+                    ax.plot(curr_guide[:, 0], curr_guide[:, 1], curr_guide[:, 2], color='red', linewidth=2.5, marker='x', markersize=5, label='Guide')
+
+                ax.set_xlim([-0.25, 0.25])
+                ax.set_ylim([-0.25, 0.25])
+                ax.set_zlim([0.3, 0.5])
+
+                ax.set_xlabel("X Position")
+                ax.set_ylabel("Y Position")
+                ax.set_zlabel("Z Position")
+                ax.set_title("Generated Trajectories vs. Guide Trajectory")
+                ax.legend()
+                
+                # Create a directory to save plots if it doesn't exist
+                save_dir = "/home/choudhue/PolicyGuide/evaluations/fullT/rs_path/trajectories"
+                os.makedirs(save_dir, exist_ok=True)
+                
+                # Generate a unique filename with a timestamp
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+                save_path = os.path.join(save_dir, f"trajectories_{timestamp}.png")
+                
+                plt.savefig(save_path)
+                plt.close(fig)
+
+                # plt.show()
+
+        end = time.perf_counter()
+        print(f"Rejection Sampling - Execution time: {end - start:.6f} seconds")
+
+        return sample, best_sample_idx
     
-    def guide_gradient(self, naction, guide):
+    def guide_gradient(self, naction, guide, guide_mode):
         # naction: (B, pred_horizon, action_dim);
         # guide: (guide_horizon, action_dim)
         # print('noisy action shape:', naction.shape, 'guide shape:', guide.shape)
@@ -287,7 +398,15 @@ class DiffusionModel(nn.Module):
         assert guide.shape == (1, naction.shape[1], naction.shape[2])
         with torch.enable_grad():
             naction = naction.clone().detach().requires_grad_(True)
-            dist = torch.linalg.norm(naction - guide, dim=2, ord=2) # (B, pred_horizon)
+            
+            if guide_mode == "point" or guide_mode == "path" or guide_mode == "trajectory":
+                mask = torch.ones_like(naction, dtype=torch.bool)
+                mask[:, :, 3:] = False  # Only compute gradient for the first three actions
+                diff = (naction - guide) * mask
+                dist = torch.linalg.norm(diff, dim=2, ord=2)
+            else:
+                # dist = torch.where(mask, torch.linalg.norm(naction - guide, dim=2, ord=2), 0.0)
+                dist = torch.linalg.norm(naction - guide, dim=2, ord=2) # (B, pred_horizon)
             dist = dist.mean(dim=1) # (B,)
             grad = torch.autograd.grad(dist, naction, grad_outputs=torch.ones_like(dist), create_graph=False)[0]
             # naction.detach()
@@ -323,7 +442,7 @@ class DiffusionModel(nn.Module):
         # print(f"GlRuntimeError: Sizes of tensors must match except in dimension 2. Expected size 2 but got size 1 for tensor number 2 in the list.obal conditioning tensor shape: {global_cond.shape}")
         return global_cond
 
-    def generate_actions(self, batch: dict[str, Tensor], guide: Tensor | None = None, visualizer=None, normalizer=None, multi=False) -> Tensor:
+    def generate_actions(self, batch: dict[str, Tensor], guide: Tensor | None = None, visualizer=None, normalizer=None, multi=False, guide_mode=None) -> Tensor:
         """
         This function expects `batch` to have:
         {
@@ -342,14 +461,14 @@ class DiffusionModel(nn.Module):
         global_cond = self._prepare_global_conditioning(batch)  # (B, global_cond_dim)
 
         # run sampling
-        actions = self.conditional_sample(batch_size, global_cond=global_cond, guide=guide, visualizer=visualizer, normalizer=normalizer, multi=multi)
+        actions, best_idx = self.conditional_sample(batch_size, global_cond=global_cond, guide=guide, visualizer=visualizer, normalizer=normalizer, multi=multi, guide_mode=guide_mode)
 
         # Extract `n_action_steps` steps worth of actions (from the current observation).
         start = n_obs_steps - 1
         end = start + self.config.n_action_steps
         actions = actions[:, start:end]
 
-        return actions
+        return actions, best_idx
 
     def compute_loss(self, batch: dict[str, Tensor]) -> Tensor:
         """

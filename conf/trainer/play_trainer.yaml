@@ -1,4 +1,4 @@
-devices: [2]
+devices: [0]
 accelerator: gpu
 precision: 16
 gradient_clip_val: 0.5

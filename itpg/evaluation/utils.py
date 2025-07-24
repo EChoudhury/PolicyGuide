@@ -327,7 +327,7 @@ def visualize_point(client_id, point, color_idx=8):
         physicsClientId=client_id
     )
 
-    # print(f"Sphere added at {position} with ID {sphere_id}")
+    print(f"Sphere added at {position} with ID {sphere_id}")
     return sphere_id
 
 def remove_oldest_sphere(queue, client_id):

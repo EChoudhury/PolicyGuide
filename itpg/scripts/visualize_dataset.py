@@ -15,9 +15,7 @@ if __name__ == "__main__":
         exit()
 
     indices = next(iter(np.load(f"{args.path}/scene_info.npy", allow_pickle=True).item().values()))
-    # indices = list(range(53819, 611098 + 1))
     indices = list(range(indices[0], indices[1] + 1))
-    # print(indices)
 
     annotations = np.load(f"{args.path}/lang_annotations/auto_lang_ann.npy", allow_pickle=True).item()
     annotations = list(zip(annotations["info"]["indx"], annotations["language"]["ann"]))

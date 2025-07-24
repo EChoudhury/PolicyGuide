@@ -177,3 +177,9 @@ viz/
 
 # Simulator
 calvin_env/
+
+#auth
+auth_key.txt
+
+#evals
+evaluations/

@@ -48,7 +48,7 @@ from calvin_env.envs.play_table_env import get_env
 logger = logging.getLogger(__name__)
 
 EP_LEN = 45  # 8 actions step
-NUM_SEQUENCES = 200
+NUM_SEQUENCES = 1000
 
 
 def get_epoch(checkpoint):
@@ -66,7 +66,7 @@ def make_env(dataset_path):
     # env = Wrapper(env)
     return env
 
-def save_images_and_create_gif(images: List[np.ndarray], save_dir: str, gif_name: str = "rollout.gif", fps: int = 10):
+def save_images_and_create_gif(images: List[np.ndarray], save_dir: str, gif_name: str = "rollout.gif", fps: int = 10, toggle_gif: bool = False):
     """
     Save images from observations and create a GIF.
 
@@ -86,6 +86,10 @@ def save_images_and_create_gif(images: List[np.ndarray], save_dir: str, gif_name
         pil_img = Image.fromarray(img)
         pil_img.save(img_path)
         image_paths.append(img_path)
+
+    if toggle_gif:
+        print(f"GIF creation is toggled off. Images saved at {save_path}.")
+        return
 
     # Create GIF
     gif_path = save_path / gif_name
@@ -175,7 +179,7 @@ def evaluate_policy(model, env, epoch, eval_log_dir=None, debug=False, create_pl
     else:
         val_annotations = OmegaConf.load(conf_dir / "annotations/calvin_D_3T_validation.yaml")
 
-    eval_log_dir = get_log_dir(eval_log_dir)
+    eval_log_dir = get_log_dir(viz_folder)
 
     if full_eval:
         eval_sequences = get_sequences(NUM_SEQUENCES)
@@ -199,6 +203,9 @@ def evaluate_policy(model, env, epoch, eval_log_dir=None, debug=False, create_pl
             eval_sequences.set_description(
                 " ".join([f"{i + 1}/5 : {v * 100:.1f}% |" for i, v in enumerate(count_success(results))]) + "|"
             )
+        if len(results) % 100 == 0 and len(results) > 0:
+            print(f"Evaluated {len(results)} sequences so far. Rolling out results...")
+            print_and_save(results, eval_sequences, eval_log_dir, len(results))
 
     if create_plan_tsne:
         create_tsne(plans, eval_log_dir, epoch)
@@ -212,9 +219,45 @@ def evaluate_sequence(env, model, task_checker, initial_state, eval_sequence, va
     """
     Evaluates a sequence of language instructions.
     """
+    gaussian_start_states = True
     robot_obs, scene_obs = get_env_state_for_initial_condition(initial_state)
-    env.reset(robot_obs=robot_obs, scene_obs=scene_obs)
-
+    gaussian_start_input = None
+    if gaussian_start_states:
+        initial_batch = {}
+        start_state_images = []
+        initial_robot_obs = []
+        for i in range(64):
+            #add Gaussian noise to the initial state
+            robot_obs_i = robot_obs + np.random.randn(*robot_obs.shape) * 0.1
+            robot_obs_i[-1] = 1.0  # ensure gripper is open
+            robot_obs_i[6] = 0.07999963 # ensure gripper is open standard width 
+            initial_robot_obs.append(robot_obs_i)
+            env.reset(robot_obs=robot_obs_i, scene_obs=scene_obs)
+            obs = env.get_obs()
+            temp_obs_img = (obs["rgb_obs"]["rgb_static"][:,0,...]).detach().cpu().numpy().copy()
+            temp_obs_img = temp_obs_img.squeeze().squeeze()
+            temp_obs_img = np.transpose(temp_obs_img, (1, 2, 0))
+            temp_obs_img = ((temp_obs_img + 1) * 0.5 * 255.0).astype("uint8")
+            start_state_images.append(temp_obs_img)
+            obs_history = [obs, obs]
+            combined_obs = combine_observations(obs_history)
+            # add the observations to the batch
+            if i == 0:
+                initial_batch = {
+                    "robot_obs": combined_obs["robot_obs"],
+                    "rgb_obs": {
+                        "rgb_static": combined_obs["rgb_obs"]["rgb_static"],
+                        "rgb_gripper": combined_obs["rgb_obs"]["rgb_gripper"]
+                    }
+                }
+            else:
+                initial_batch["robot_obs"] = torch.cat((initial_batch["robot_obs"], combined_obs["robot_obs"]), dim=0)
+                initial_batch["rgb_obs"]["rgb_static"] = torch.cat((initial_batch["rgb_obs"]["rgb_static"], combined_obs["rgb_obs"]["rgb_static"]), dim=0)
+                initial_batch["rgb_obs"]["rgb_gripper"] = torch.cat((initial_batch["rgb_obs"]["rgb_gripper"], combined_obs["rgb_obs"]["rgb_gripper"]), dim=0)
+        gaussian_start_input = (initial_batch, start_state_images)
+    else:
+        env.reset(robot_obs=robot_obs, scene_obs=scene_obs)
+        
     save_dir = os.path.join(viz_folder, f"eval_viz_{curr_time}")
     print(f"Saving rollout video to {save_dir}")
     rollout_video = RolloutVideo(
@@ -232,10 +275,16 @@ def evaluate_sequence(env, model, task_checker, initial_state, eval_sequence, va
         print()
         print(f"Evaluating sequence: {' -> '.join(eval_sequence)}")
         print("Subtask: ")
-    for subtask in eval_sequence:
+    for i, subtask in enumerate(eval_sequence):
+        if i != 0 or not gaussian_start_states:
+            gaussian_start_input = None
+            initial_robot_obs = None
+            scene_obs = None
+
         success = rollout(env, model, task_checker, subtask, val_annotations, 
                           plans, debug, save_viz, viz_folder, curr_time, 
-                          rollout_video, data_module)
+                          rollout_video, data_module, gaussian_start_input, 
+                          initial_robot_obs, scene_obs)
         if success:
             success_counter += 1
         else:
@@ -268,7 +317,8 @@ def combine_observations(observations: List[Dict[str, torch.Tensor]]) -> Dict[st
 
 
 def rollout(env, model, task_oracle, subtask, val_annotations, plans, 
-            debug, save_viz, viz_folder, curr_time, rollout_video, data_module):
+            debug, save_viz, viz_folder, curr_time, rollout_video, data_module, 
+            gaussian_start_input=None, initial_robot_obs=None, scene_obs=None):
     """
     Run the actual rollout on one subtask (which is one natural language instruction).
     """
@@ -289,6 +339,10 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans,
     if save_viz and debug:
         images = []
         affs = []
+        if gaussian_start_input is not None:
+            start_states = gaussian_start_input[1]
+        else:
+            start_states = None
     last_action = np.zeros((7))
     for step in tqdm(range(EP_LEN)):
         if obs_history is None:
@@ -299,13 +353,30 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans,
         guide = None
         
         # action = model.step(combined_obs, lang_annotation)
-        action, guide, aff_pred, pixels = model.step(combined_obs, lang_annotation, last_action, subtask, data_module)
+        if gaussian_start_input is not None and step == 0:
+            combined_obs = gaussian_start_input[0]
+
+        # mean = torch.Tensor([0.039233, -0.118554, 0.507826]).cuda(3)
+        # std = torch.Tensor([0.150769, 0.1104, 0.06253]).cuda(3)
+        # ee_pos = obs["robot_obs"][0, 0, :3]
+        # ee_pos = (ee_pos * std) + mean
+
+        # visualize_point(client_id, ee_pos)
+
+        action, guide, aff_pred, pixels, best_idx = model.step(combined_obs, lang_annotation, last_action, subtask, data_module)
+
+        if gaussian_start_input is not None and step == 0:
+            env.reset(robot_obs=initial_robot_obs[best_idx], scene_obs=scene_obs)
+            obs = env.get_obs()
+            obs_history = [obs, obs]
+            combined_obs = combine_observations(obs_history)
 
         if aff_pred is not None:
             aff_pred = (aff_pred * 255).astype("uint8")
-            affs.append(aff_pred)
+            if save_viz:
+                affs.append(aff_pred)
         # save last action for padding
-        last_action = action[:, -1, :].squeeze().cpu().numpy()
+        # last_action = action[:, -1, :].squeeze().cpu().numpy()
 
         for i in range(action.shape[1]):
             obs, _, _, current_info = env.step(action[:,i,...])
@@ -340,6 +411,11 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans,
                     sequence_time = time.strftime("%Y%m%d_%H%M%S")
                     gif_name = f"{sequence_time}_rollout_{subtask}_affordances_success.gif"
                     save_images_and_create_gif(affs, save_dir, gif_name)
+                    
+                    if start_states is not None and gaussian_start_input is not None:
+                        # Save initial starting states
+                        save_states_folder = os.path.join(save_dir, f"states_{sequence_time}")
+                        save_images_and_create_gif(start_states, save_states_folder, toggle_gif=True)
 
                     rollout_video.add_language_instruction(subtask)
                     # rollout_video.add_goal_thumbnail(torch.from_numpy(affs[-1]).permute(2, 0, 1))
@@ -349,12 +425,16 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans,
     if debug:
         print(colored("task failed", "red"), end=" \n")
         if save_viz:
-
             # save images for gif
             save_dir = os.path.join(viz_folder, f"eval_viz_{curr_time}")
             sequence_time = time.strftime("%Y%m%d_%H%M%S")
             gif_name = f"{sequence_time}_rollout_{subtask}_affordances_fail.gif"
             save_images_and_create_gif(affs, save_dir, gif_name)
+
+            if start_states is not None and gaussian_start_input is not None:
+                # Save initial starting states
+                save_states_folder = os.path.join(save_dir, f"states_{sequence_time}")
+                save_images_and_create_gif(start_states, save_states_folder, toggle_gif=True)
 
             rollout_video.add_language_instruction(subtask)
             # rollout_video.add_goal_thumbnail(torch.from_numpy(affs[-1]).permute(2, 0, 1))
@@ -403,11 +483,11 @@ def main():
 
     parser.add_argument("--eval_log_dir", default=None, type=str, help="Where to log the evaluation results.")
 
-    parser.add_argument("--device", default=0, type=int, help="CUDA device")
+    parser.add_argument("--device", default=2, type=int, help="CUDA device")
     args = parser.parse_args()
 
     curr_time = time.strftime("%Y%m%d_%H%M%S")
-
+    viz_location = "/home/choudhue/PolicyGuide/evaluations/fullT/rs_path"
     # evaluate a custom model
     if args.custom_model:
         model = CustomModel()
@@ -446,7 +526,7 @@ def main():
                             debug=args.debug, 
                             create_plan_tsne=False, 
                             save_viz=args.save_viz, 
-                            viz_folder=args.train_folder, 
+                            viz_folder=viz_location, # args.train_folder, #
                             curr_time=curr_time,
                             full_eval=args.full_eval,
                             data_module=data_module

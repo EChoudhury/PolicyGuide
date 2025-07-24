@@ -38,6 +38,8 @@ class CALVINSkillExtractor:
         skill_name: str,
         data_to_extract: list,
         step_len: int,
+        play_data: bool = False,
+        n_episodes: int = 3000,
     ):
         self.data_dir = Path(data_dir)
         self.save_dir = Path(save_dir)
@@ -47,8 +49,13 @@ class CALVINSkillExtractor:
         self.naming_pattern, self.n_digits = self.lookup_naming_pattern()
         self.step_len = step_len
         self.replay_buffer = RobotReplayBuffer.create_from_path(self.save_dir, mode="a")
+        self.play_data = play_data
+        self.n_episodes = n_episodes
 
     def __len__(self) -> int:
+        if self.play_data:
+            # For play data, we want n_episodes, each episode is 64 frames long
+            return self.n_episodes // 64
         return len(self.episode_lookup)
 
     def __getitem__(self, idx: Union[int, Tuple[int, int]]) -> Dict:
@@ -108,11 +115,14 @@ class CALVINSkillExtractor:
         seq_depth_obs:  tuple of numpy arrays of depths observations
         seq_acts:       numpy array of actions
         """
-        info_indx = self.episode_lookup[idx]
-        start_file_indx = info_indx[0]
-        end_file_indx = info_indx[1]
-
-        lang_annotation = self.annotations_idx[idx]
+        if self.play_data:
+            start_file_indx = idx
+            end_file_indx = idx + 128
+        else:
+            info_indx = self.episode_lookup[idx]
+            start_file_indx = info_indx[0]
+            end_file_indx = info_indx[1]
+            lang_annotation = self.annotations_idx[idx]
 
         episode = self.zip_sequence(start_file_indx, end_file_indx)
 
@@ -180,62 +190,67 @@ class CALVINSkillExtractor:
 def generate_episode_dict(episode, language):
     eps_len = int(episode["robot_obs"].shape[0])
 
-    # Low-dim observations (robot_no_joints)
-    # selected_obs = list(range(0, 7)) + [14]
-    # state_obs = episode["robot_obs"][:, selected_obs]
-
     episode_dict = []
     for i in range(eps_len):
-        episode_dict.append({
-            "language": language,
-            "robot_obs": episode["robot_obs"][i],
-            "rgb_static": episode["rgb_static"][i],
-            "rgb_gripper": episode["rgb_gripper"][i],
-            "actions": episode["actions"][i],
-            "episode_step": i,
-        })
+        if language is not None:
+            episode_dict.append({
+                "language": language,
+                "robot_obs": episode["robot_obs"][i],
+                "rgb_static": episode["rgb_static"][i],
+                "rgb_gripper": episode["rgb_gripper"][i],
+                "actions": episode["actions"][i],
+                "episode_step": i,
+            })
+        else:
+            episode_dict.append({
+                "robot_obs": episode["robot_obs"][i],
+                "rgb_static": episode["rgb_static"][i],
+                "rgb_gripper": episode["rgb_gripper"][i],
+                "actions": episode["actions"][i],
+                "episode_step": i,
+            })
 
     return episode_dict
 
-def make_dataset(load_path, save_dir, step_len, multi_dir=False):
+def make_dataset(load_path, save_dir, step_len, multi_dir=False, play_data=True):
     if not os.path.exists(save_dir):
         os.makedirs(save_dir, exist_ok=True)
 
     skill_list = [
         "open_drawer",
-        "move_slider_left",
-        "lift_pink_block_table",
-        "push_pink_block_right",
-        "close_drawer",
-        "turn_on_lightbulb",
-        "turn_off_lightbulb",
-        "move_slider_right",
-        "turn_on_led",
-        "turn_off_led",
-        "lift_blue_block_drawer",
-        "lift_red_block_drawer",
-        "lift_pink_block_drawer",
-        "lift_blue_block_table",
-        "lift_red_block_table",
-        "lift_blue_block_slider",
-        "lift_red_block_slider",
-        "lift_pink_block_slider",
-        "push_blue_block_left",
-        "push_red_block_left",
-        "push_pink_block_left",
-        "push_blue_block_right",
-        "push_red_block_right",
-        "rotate_red_block_right",
-        "rotate_red_block_left",
-        "rotate_blue_block_right",
-        "rotate_blue_block_left",
-        "rotate_pink_block_right",
-        "rotate_pink_block_left",
-        "place_in_slider",
-        "place_in_drawer",
-        "stack_block",
-        "unstack_block",
-        "push_into_drawer",
+        # "move_slider_left",
+        # "lift_pink_block_table",
+        # "push_pink_block_right",
+        # "close_drawer",
+        # "turn_on_lightbulb",
+        # "turn_off_lightbulb",
+        # "move_slider_right",
+        # "turn_on_led",
+        # "turn_off_led",
+        # "lift_blue_block_drawer",
+        # "lift_red_block_drawer",
+        # "lift_pink_block_drawer",
+        # "lift_blue_block_table",
+        # "lift_red_block_table",
+        # "lift_blue_block_slider",
+        # "lift_red_block_slider",
+        # "lift_pink_block_slider",
+        # "push_blue_block_left",
+        # "push_red_block_left",
+        # "push_pink_block_left",
+        # "push_blue_block_right",
+        # "push_red_block_right",
+        # "rotate_red_block_right",
+        # "rotate_red_block_left",
+        # "rotate_blue_block_right",
+        # "rotate_blue_block_left",
+        # "rotate_pink_block_right",
+        # "rotate_pink_block_left",
+        # "place_in_slider",
+        # "place_in_drawer",
+        # "stack_block",
+        # "unstack_block",
+        # "push_into_drawer",
     ]
     data_to_extract = [
         "robot_obs",
@@ -243,7 +258,7 @@ def make_dataset(load_path, save_dir, step_len, multi_dir=False):
         "actions",
         "rgb_static",
         "rgb_gripper",
-        "language",
+        # "language",
     ]
 
     # Define the desired chunk sizes
@@ -278,15 +293,28 @@ def make_dataset(load_path, save_dir, step_len, multi_dir=False):
             skill_name=skill,
             data_to_extract=data_to_extract,
             step_len=step_len,
+            play_data=play_data,
+            n_episodes=200,
         )
 
         # for idx in tqdm(range(len(extractor))):
-        extract_num = min(30, len(extractor))  # Limit to 30 episodes for testing
-        print(f"Extracting {extract_num} episodes for skill: {skill}")
-        for idx in tqdm(range(extract_num)):
+        
+        if play_data:
+            extract_num = range(100000, 100000 + (200 * 128), 128)  # Play data is in chunks of 64
+        else:
+            extract_num = range(len(extractor)) #min(30, len(extractor))  # Limit to 30 episodes for testing
+        
+        print(extract_num)
+        for idx in tqdm(extract_num):
             episode = extractor[idx]
             
-            episode_dict = generate_episode_dict(episode, extractor.annotations_idx[idx])
+            if play_data:
+                # For play data, idx is the starting index of the episode
+                lang_ann = None
+            else: 
+                lang_ann = extractor.annotations_idx[idx]
+
+            episode_dict = generate_episode_dict(episode, lang_ann)
 
             extractor.replay_buffer.add_episode_from_list(episode_dict, compressors="disk") #chunks=desired_chunks,
             # print(f"Saving episode for {skill}...")
@@ -318,11 +346,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--save_dir",
         type=str,
-        default="/home/choudhue/PolicyGuide/dataset/calvin_D_FullT30_dataset",
+        default="/home/choudhue/PolicyGuide/dataset/calvin_D_play_dataset",
     )
     parser.add_argument("--step_len", type=int, default=1)
     parser.add_argument("--full", help="Use this flag to load both training and validation data.", action=argparse.BooleanOptionalAction)
     parser.add_argument("--multi", help="Use this flag to create a separate folder for each task.", action=argparse.BooleanOptionalAction)
+    parser.add_argument("--play_data", help="Use this flag to create a separate folder for each task.", action=argparse.BooleanOptionalAction)
     args = parser.parse_args()
 
     print(args)
@@ -331,10 +360,10 @@ if __name__ == "__main__":
         # Load training data
         load_path = os.path.join(args.load_path, "training")
         save_dir = os.path.join(args.save_dir, "training")
-        make_dataset(load_path, save_dir, args.step_len, args.multi)
+        make_dataset(load_path, save_dir, args.step_len, args.multi, args.play_data)
         # Load validation data
-        load_path = os.path.join(args.load_path, "validation")
-        save_dir = os.path.join(args.save_dir, "validation")
-        make_dataset(load_path, save_dir, args.step_len, args.multi)
+        # load_path = os.path.join(args.load_path, "validation")
+        # save_dir = os.path.join(args.save_dir, "validation")
+        # make_dataset(load_path, save_dir, args.step_len, args.multi, args.play_data)
     else:
-        make_dataset(args.load_path, args.save_dir, args.step_len, args.multi)
+        make_dataset(args.load_path, args.save_dir, args.step_len, args.multi, args.play_data)

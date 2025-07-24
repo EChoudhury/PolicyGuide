@@ -17,10 +17,12 @@ import pytorch_lightning as pl
 from pytorch_lightning.utilities import rank_zero_only
 import torch
 import torch.distributions as D
+from sentence_transformers import util
 
 from itpg.policy.models.diffusion_policy.diffusion_policy import DiffusionPolicy
 from itpg.policy.models.diffusion_policy.configuration_diffusion import DiffusionConfig
 from itpg.utils.utils import get_aff_model, get_abspath
+# from itpg.policy.models.language_encoders.chatgpt_describer import ChatGPTDescriber
 
 from itpg.affordance.dataset_creation.core.utils import instantiate_test_env
 
@@ -44,14 +46,16 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         stats_path: None = None,
         use_affordance: bool = True,
         affordance_duration: int = 10,
-        use_lang_encoding: bool = False,
+        use_lang_encoding: bool = True,
         normalize_language_embeddings: bool = False,
     ):
         super(ITPG, self).__init__()
 
+        self.cuda_device = 2
+
         # affordance toggle
-        self.use_affordance = True #use_affordance
-        self.affordance_duration = affordance_duration
+        self.use_affordance = use_affordance
+        self.affordance_duration = 100 #affordance_duration
 
         # language encoder toggle
         self.use_lang_encoding = use_lang_encoding
@@ -75,7 +79,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         # load language encoder
         # if self.use_lang_encoding:
         self.language_encoder = hydra.utils.instantiate(language_encoder)
-        self.language_encoder = self.language_encoder.cuda(2)
+        self.language_encoder = self.language_encoder.cuda(self.cuda_device)
 
         # load optimizer
         self.optimizer_config = optimizer
@@ -97,6 +101,27 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
 
         self._wandb_watch_called = False
         self.guide = None
+        self.trajectory_selection = None
+
+        self.use_chatgpt = False
+        self.chatgpt_describer = None
+        # if self.use_chatgpt:
+        #     self.chatgpt_describer = ChatGPTDescriber(
+        #         model="gpt-4o-mini-2024-07-18",
+        #         api_key=os.getenv("OPENAI_API_KEY")
+        #     )
+
+        # Testing Params
+        self.affordance_mode = "time" # "time", "distance"
+        self.dist_threshold = 0.15 # distance threshold for affordance
+        self.guide_mode = "path" # "point", "path", "trajectory"
+        if self.use_affordance:
+            print("############ Affordance Info #############")
+            print(f"Using Affordance: {self.use_affordance}")
+            print(f"Affordance Duration Mode: {self.affordance_mode}")
+            print(f"Guide Mode: {self.guide_mode}")
+            print(f"Distance Threshold: {self.dist_threshold}")
+            print("##########################################")
 
         # load language annotations if using encodings
         self.root_data_dir = "/home/choudhue/PolicyGuide/dataset/calvin_D_fullT_dataset" #root_data_dir #
@@ -112,7 +137,10 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         # self.train_lang_annotations = self.load_lang_annotations(root_data_dir + "/training/lang_annotations/auto_lang_ann.npy", None)
         # self.val_lang_annotations = self.load_lang_annotations(root_data_dir + "/validation/lang_annotations/auto_lang_ann.npy", None)
 
-        # self.phrase_index, self.encoded_instruction_index = self.build_phrase_index(self.train_lang_annotations)
+        self.phrase_index, self.encoded_instruction_index = self.build_phrase_index(self.train_lang_annotations)
+
+        # use this to plot trajectories
+        # self.plot_trajectories_3d()
 
 
     def configure_optimizers(self):
@@ -161,7 +189,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
             dict: Converted batch dictionary.
         """
         if infer:
-            B = 1
+            B = batch['robot_obs'].shape[0]  # Batch size
         else:
             B = len(batch['idx'])  # Batch size
             
@@ -290,6 +318,8 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         Call this at the beginning of a new rollout when doing inference.
         """
         self.rollout_step_counter = 0
+        self.guide = None
+        self.trajectory_selection = None
 
     def step(self, obs, goal=None, last_action=None, task_id=None, data_module=None):
         """
@@ -328,14 +358,25 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         # Use affordance model to get the guide
         if self.use_affordance:
             # Find the euclidean distance between ee_pos and self.guide   
-            ee_pos = converted_obs["observation.state"][0][1][:3]
+            # TODO: Fix hack! This pulls from the statistics file
+            mean = torch.Tensor([0.039233, -0.118554, 0.507826]).cuda(self.cuda_device)
+            std = torch.Tensor([0.150769, 0.1104, 0.06253]).cuda(self.cuda_device)
+            ee_pos = converted_obs["observation.state"][0, 1, :3] 
+            ee_pos = (ee_pos * std) + mean
+
             # set euc_dist to torch inf
-            euc_dist = torch.inf
-            if self.guide is not None:
-                euc_dist = torch.linalg.norm(ee_pos - self.guide)
-                print(f"Distance to guide: {euc_dist}")
-            if self.rollout_step_counter % self.replan_freq == 0 and euc_dist > 1.0: #self.rollout_step_counter < self.affordance_duration:
-                frame = converted_obs["observation.image_static"][:,-1,...].detach().cpu().numpy().copy()
+            duration = True
+            if self.affordance_mode == "distance":
+                euc_dist = torch.inf
+                if self.guide is not None:
+                    euc_dist = torch.linalg.norm(ee_pos - self.guide)
+                    duration = euc_dist > self.dist_threshold
+                print(f"Distance to guide: {euc_dist}, Threshold: {self.dist_threshold}")
+            elif self.affordance_mode == "time":
+                duration = self.rollout_step_counter < self.affordance_duration
+
+            if self.rollout_step_counter % self.replan_freq == 0 and duration: 
+                frame = converted_obs["observation.image_static"][0,-1,...].detach().cpu().numpy().copy()
                 frame = frame.squeeze()
                 frame = ((frame + 1) * 0.5 * 255.0).astype("uint8")
                 frame = np.transpose(frame, (1, 2, 0))
@@ -344,36 +385,40 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
                 afford_pred = self.affordance_policy.predict(affordance_obs)
                 affordance_pixel = afford_pred["pixel"]
                 guide = self.camera.deproject_single_depth(afford_pred["pixel"], afford_pred["depth"])
-                self.guide = torch.from_numpy(guide).cuda()
+                self.guide = torch.from_numpy(guide).cuda(self.cuda_device )
                 padded_guide = np.concat((guide, last_action[3:]))
-                padded_guide = torch.tensor(padded_guide).cuda()
+                padded_guide = torch.tensor(padded_guide).cuda(self.cuda_device)
                 padded_guide = torch.unsqueeze(padded_guide, 0)
-                # # padded_guide = self.point_to_path(last_action, guide)
-                padded_guide = self.fetch_guide_trajectory(ee_pos, goal, task_id)
-                # padded_guide = self.generate_arc_tensor(ee_pos, torch.tensor(guide).cuda(), None)
-                # padded_guide = arc_guide
-                padded_guide = padded_guide[:8,:]
-                # Visualize affordance predictions
-                # Normalize guide using transforms from datamodule if it exists
-                # if data_module is not None:
-                #     transforms = data_module.val_transforms
-                #     if "robot_obs" in transforms:
-                #         padded_guide = padded_guide.detach().cpu()
-                #         padded_guide = transforms["guide"](padded_guide)
-                #         padded_guide = padded_guide.cuda()
+
+                if self.guide_mode == "trajectory":
+                    # Generate a trajectory from the guide
+                    padded_guide = self.fetch_guide_trajectory(ee_pos, goal, torch.tensor(guide).cuda(self.cuda_device), None) #task_id
+                    # padded_guide = self.generate_arc_tensor(ee_pos, torch.tensor(guide).cuda(self.cuda_device), torch.tensor(padded_guide).cuda(self.cuda_device), traj=True)
+                    # padded_guide = padded_guide[:8,:]
+                elif self.guide_mode == "path":
+                    # Generate a path from the guide
+                    padded_guide = self.generate_arc_tensor(ee_pos, torch.tensor(guide).cuda(self.cuda_device), None) #torch.tensor(padded_guide).cuda(self.cuda_device)
+                    padded_guide = padded_guide[:16,:]
+                elif self.guide_mode == "point":
+                    # Use the guide as a point
+                    padded_guide = padded_guide
+                else:
+                    raise ValueError(f"Unknown guide mode: {self.guide_mode}")
+                
+                # Visualize affordance predictions               
                 out_img, pred_img = self.affordance_policy.get_preds_viz(affordance_obs, afford_pred)
 
         # Run inference on diffusion policy
         start = time.perf_counter()
-        action = self.diffusion_policy.run_inference(converted_obs, guide=padded_guide)
+        action, best_idx = self.diffusion_policy.run_inference(converted_obs, guide=padded_guide, guide_mode=self.guide_mode)
         end = time.perf_counter()
         print(f"Run Inference - Execution time: {end - start:.6f} seconds")
 
         self.rollout_step_counter += 1
-        return action, padded_guide, pred_img["pred_pixel"], affordance_pixel
+        return action, padded_guide, pred_img["pred_pixel"], affordance_pixel, best_idx
 
 
-    def generate_arc_tensor(self, start, end, guide=None, arc_height=1.0, num_points=8):
+    def generate_arc_tensor(self, start, end, guide=None, arc_height=0.0, num_points=16, traj=False):
         """
         Generate a torch.Tensor of shape (num_points, 7) containing 3D arc points
         and 4 extra zero-padding values per point.
@@ -383,6 +428,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         - end: tuple or list of 3 floats
         - arc_height: float controlling arc curvature
         - num_points: number of points to generate (default: 8)
+        - traj: trajectory guide mode
 
         Returns:
         - torch.Tensor of shape (num_points, 7)
@@ -394,41 +440,64 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         vec = end - start
         dir_vec = vec / vec.norm()
 
-        # Choose an "up" vector not parallel to direction
-        if torch.allclose(dir_vec, torch.tensor([0.0, 0.0, 1.0], dtype=torch.float64).cuda()):
-            up = torch.tensor([0.0, 1.0, 0.0], dtype=torch.float64).cuda()
-        else:
-            up = torch.tensor([0.0, 0.0, 1.0], dtype=torch.float64).cuda()
-
-        # Perpendicular vector to dir_vec and up
-        perp = torch.cross(dir_vec, up)
-        perp = perp / perp.norm()
+        up = torch.tensor([0.0, 0.0, 1.0], dtype=torch.float64).cuda(self.cuda_device)
 
         # Control point defines the arc
-        control = mid + perp * arc_height
+        control = mid + up * arc_height
 
-        # Generate t values (excluding start and end)
-        t_vals = torch.linspace(0, 1, num_points + 2)[1:-1]
+        # Generate t values (including start and end)
+        t_vals = torch.linspace(0, 1, num_points, dtype=torch.float64).cuda(self.cuda_device)
 
         points = []
         for t in t_vals:
             point = (1 - t)**2 * start + 2 * (1 - t) * t * control + t**2 * end
-            padded_point = torch.cat([point, torch.zeros(4).cuda()], dim=0)
+            padded_point = torch.cat([point, torch.zeros(4).cuda(self.cuda_device)], dim=0)
             points.append(padded_point)
-
 
         actions = torch.stack(points)
 
         if guide is not None:
-            # for each row, add the first 3 elements of actions to the last 4 elements of guide
-            expanded_guide = guide.unsqueeze(0)
-            actions[:, :3] += expanded_guide[:, 3:]
-            # actions = torch.cat((actions[:, :3], guide[:8, 3:]), dim=-1)
+            #  Combine first 3 position elements of actions to the last 4 Euler Angles of guide
+            if traj:
+                actions = torch.cat((actions[:, :3], guide[:, 3:]), dim=-1)
+            else:
+                if guide.shape[0] != actions.shape[0]:
+                    guide = guide.repeat(actions.shape[0], 1)
+                actions = torch.cat((actions[:, :3], guide[:, 3:]), dim=-1)
+
+        # visualize the generated arc in 3d
+        # import matplotlib.pyplot as plt
+        # from mpl_toolkits.mplot3d import Axes3D
+        # fig = plt.figure()
+        # ax = fig.add_subplot(111, projection='3d')
+        # ax.plot(start[0].cpu().numpy(), start[1].cpu().numpy(), start[2].cpu().numpy(), color='blue', linewidth=2.5, marker='x', markersize=8, label='End Effector Position')
+        # ax.plot(end[0].cpu().numpy(), end[1].cpu().numpy(), end[2].cpu().numpy(), color='green', linewidth=2.5, marker='x', markersize=8, label='Affordance Prediction')
+        # ax.plot(actions[:, 0].cpu().numpy(), actions[:, 1].cpu().numpy(), actions[:, 2].cpu().numpy(), color='red', linewidth=2.5, marker='x', markersize=5, label='Guide')
+        # ax.set_xlabel("X Position")
+        # ax.set_ylabel("Y Position")
+        # ax.set_zlabel("Z Position")
+        # ax.set_title("Generated Trajectories vs. Guide Trajectory")
+        # ax.legend()
+        # plt.show()
+        
         return actions
 
 
-    def fetch_guide_trajectory(self, current_ee_pos, goal_lang, task_id=None):
+    def fetch_guide_trajectory(self, current_ee_pos, goal_lang, affordance, task_id=None):
         initial_goal = goal_lang
+        
+        if self.trajectory_selection is not None:
+            print(f"Using previous trajectory selection...")
+            # grab index of the current step for all, unless within 8 of the length of trajectory selection, then just use the last 8 steps
+            if self.rollout_step_counter * 8 < self.trajectory_selection.shape[0] - 16:
+                closest_action = self.trajectory_selection[self.rollout_step_counter * 8:self.rollout_step_counter * 8 + 16, :]
+                print(f"Using trajectory selection: ({self.rollout_step_counter * 8}, {self.rollout_step_counter * 8 + 16})")
+            else:
+                closest_action = self.trajectory_selection[-16:, :]
+                print(f"Using trajectory selection: -16")
+           
+            return closest_action
+
         if task_id is None:
             goal_lang = self.query_phrase_index(goal_lang, self.phrase_index, self.encoded_instruction_index)
 
@@ -437,22 +506,31 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
             else:
                 skill_id = self.train_ann_to_id[goal_lang]
                 actions = self.train_id_to_actions[skill_id]
+                print(f"Provided Goal: {initial_goal}, Most Similar Goal: {skill_id}")
         else:
             actions = self.train_id_to_actions[task_id]
+            print(f"Provided Goal: {initial_goal}, Provided Task_ID: {task_id}")
         
-        print(f"Provided Goal: {initial_goal}, Most Similar Goal: {task_id}")
         min_dist = float('inf')
         closest_action = None
         #send actions to torch cuda
-        actions = [torch.tensor(action).cuda() for action in actions]
+        actions = [torch.tensor(action).cuda(self.cuda_device) for action in actions]
         for action in actions:
             # check if the first action is closest to the end effector position
-            euc_dist = torch.linalg.norm(current_ee_pos - action[0][:3])
+            euc_dist_first = torch.linalg.norm(current_ee_pos - action[0][:3])
+            euc_dist_last = torch.linalg.norm(affordance - action[-1][:3])
+            euc_dist = euc_dist_first + euc_dist_last
             if euc_dist < min_dist:
                 min_dist = euc_dist
                 closest_action = action
 
-        return closest_action
+        if self.trajectory_selection is None:
+            self.trajectory_selection = closest_action
+
+        # store only every eighth action sequence in closest_action
+        # indices = torch.linspace(0, 64, steps=8).long()
+        # closest_action = closest_action[indices]
+        return closest_action[:16, :]
 
 
     def load_lang_annotations(self, annotations_path, trajectory_path):
@@ -493,7 +571,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         #     raise ValueError("Language encoding is not enabled.")
         
         # build the phrase index from the annotation dictionary
-        phrases = list(annotation_dict.values())
+        phrases = list(set(annotation_dict.values()))
 
         encodings = self.language_encoder.encode(phrases, True)
 
@@ -506,7 +584,72 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
 
         return phrases, encodings
 
-    
+    def plot_trajectories_3d(self, max_trajs_per_task=30, single_task="rotate_blue_block_right"):
+        """
+        Plots 3D trajectories from self.val_id_to_actions.
+        Each task ID has up to `max_trajs_per_task` trajectories plotted and labeled once in the legend.
+        
+        Assumes: self.val_id_to_actions[task_id].shape == (100, 65, 7)
+        """
+        import matplotlib.pyplot as plt
+        from mpl_toolkits.mplot3d import Axes3D
+        import matplotlib.cm as cm
+        fig = plt.figure(figsize=(12, 10))
+        ax = fig.add_subplot(111, projection='3d')
+
+        # Generate a distinct color for each task using a colormap
+        task_ids = list(self.val_id_to_actions.keys())
+        colormap = cm.get_cmap('tab20', len(task_ids))  # Or 'tab20', 'hsv', etc.
+        task_to_color = {task_id: colormap(i) for i, task_id in enumerate(task_ids)}
+
+        for task_id, traj_batch in self.val_id_to_actions.items():
+            traj_list = [np.array(action) for action in traj_batch]
+
+            if not isinstance(traj_list, (list, tuple)):
+                print(f"Task {task_id} is not a list, skipping.")
+                continue
+
+            if single_task is not None and task_id != single_task:
+                print(f"Task {task_id} is not {single_task}, skipping.")
+                continue
+
+            # skills = ["open_drawer", "move_slider_left", "close_drawer", "turn_on_lightbulb", "turn_off_lightbulb", "move_slider_right", "turn_on_led", "turn_off_led", "lift_blue_block_drawer", "lift_red_block_drawer", "lift_pink_block_drawer", "lift_blue_block_table", "lift_red_block_table", "lift_blue_block_slider", "lift_red_block_slider", "lift_pink_block_slider", "unstack_block"]
+            # if task_id not in skills:
+            #     print(f"Task {task_id} is not {single_task}, skipping.")
+            #     continue
+
+            count = 0
+            for i, traj in enumerate(traj_list):
+                if not isinstance(traj, np.ndarray) or traj.ndim != 2 or traj.shape[1] != 7:
+                    print(f"Skipping trajectory {i} in task {task_id} due to shape: {traj.shape if isinstance(traj, np.ndarray) else 'Invalid type'}")
+                    continue
+
+                x, y, z = traj[:, 0], traj[:, 1], traj[:, 2]
+                color = task_to_color[task_id]
+                label = f"Task {task_id}" if count == 0 else None  # Only label once per task
+
+                ax.plot(x, y, z, label=label, color=color, alpha=0.7)
+                count += 1
+
+                if count >= max_trajs_per_task:
+                    break
+
+        if single_task is not None and task_id != single_task:
+            ax.set_title(f"3D Trajectories for {single_task} Task")
+        else:
+            ax.set_title("3D Trajectories for All Tasks")
+        ax.set_xlabel("X")
+        ax.set_ylabel("Y")
+        ax.set_zlabel("Z")
+
+        ax.set_xlim([-0.4, 0.4])
+        ax.set_ylim([-0.5, 0.3])
+        ax.set_zlim([0.1, 0.9])
+
+        ax.legend()
+        plt.tight_layout()
+        plt.show()
+        
     def query_phrase_index(self, phrase, phrases, encodings):
         """
         Query the phrase index for the closest phrase to the given phrase.
@@ -521,11 +664,18 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         """
         # if not self.use_lang_encoding:
         #     raise ValueError("Language encoding is not enabled.")
+        # if self.use_chatgpt:
+        #     # Use ChatGPT to describe the phrase
+        #     gpt_output = self.chatgpt_describer.describe([phrase])
+        #     phrase = gpt_output.three_words
 
-        query_encoding = self.language_encoder.encode(list(phrase), True)
+        query_encoding = self.language_encoder.encode([phrase], True)
 
         # query_encoding = self.language_encoder.encode_text(phrase)[0]
         similarities = torch.cosine_similarity(encodings, query_encoding[0].squeeze(0), dim=-1)
+        
+        # similarities = util.dot_score(encodings, query_encoding)  # assumes encodings is shape (N, D), query_encoding is (1, D)
+        # similarities = similarities.squeeze(0)  # remove batch dim
         closest_idx = torch.argmax(similarities).item()
         
         return phrases[closest_idx]

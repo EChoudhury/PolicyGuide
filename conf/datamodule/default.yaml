@@ -5,7 +5,7 @@ defaults:
   - observation_space: lang_rgb_static_gripper_abs_act
 _target_: itpg.datasets.policy_guide_data_module.PolicyGuideDataModule
 _recursive_: false
-root_data_dir: "/home/choudhue/PolicyGuide/dataset/calvin_D_fullT_dataset"
+root_data_dir: "/home/choudhue/PolicyGuide/dataset/calvin_D_FullT15_dataset"
 action_space: 7
 action_max: [1., 1., 1., 1., 1., 1., 1.,]
 action_min: [-1., -1., -1., -1., -1., -1., -1]
