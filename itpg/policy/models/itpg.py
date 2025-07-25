@@ -46,20 +46,20 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         stats_path: None = None,
         use_affordance: bool = True,
         affordance_duration: int = 10,
-        use_lang_encoding: bool = False,
+        use_lang_encoding: bool = True,
         normalize_language_embeddings: bool = True,
     ):
         super(ITPG, self).__init__()
 
-        self.cuda_device = 2
+        self.cuda_device = 1
 
         # affordance toggle
-        self.use_affordance = True #use_affordance
-        self.affordance_duration = 100 #affordance_duration
+        self.use_affordance = use_affordance
+        self.affordance_duration = affordance_duration
 
         # language encoder toggle
         self.use_lang_encoding = use_lang_encoding
-        self.normalize_language_embeddings = True #normalize_language_embeddings
+        self.normalize_language_embeddings = normalize_language_embeddings
 
         # load stats dataset for normalization
         self.stats = self._get_stats(stats_path)

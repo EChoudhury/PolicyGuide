@@ -14,7 +14,7 @@ class SBertLang(nn.Module):
     def __init__(self, nlp_model: str = "paraphrase-MiniLM-L3-v2", freeze_backbone=True) -> None:
         super(SBertLang, self).__init__()
         self.freeze_backbone = freeze_backbone
-        self.model = SentenceTransformer(nlp_model, device="cuda:2")
+        self.model = SentenceTransformer(nlp_model, device="cuda:0")
         _embd_dim = 384
         self.text_fc = nn.Linear(_embd_dim, 1024)
 

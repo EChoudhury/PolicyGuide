@@ -220,6 +220,9 @@ def evaluate_sequence(env, model, task_checker, initial_state, eval_sequence, va
     Evaluates a sequence of language instructions.
     """
     gaussian_start_states = False
+    print(f"##############################################")
+    print(f"Gaussian start states: {gaussian_start_states}")
+    print("##############################################")
     robot_obs, scene_obs = get_env_state_for_initial_condition(initial_state)
     gaussian_start_input = None
     if gaussian_start_states:
@@ -483,11 +486,11 @@ def main():
 
     parser.add_argument("--eval_log_dir", default=None, type=str, help="Where to log the evaluation results.")
 
-    parser.add_argument("--device", default=2, type=int, help="CUDA device")
+    parser.add_argument("--device", default=0, type=int, help="CUDA device")
     args = parser.parse_args()
 
     curr_time = time.strftime("%Y%m%d_%H%M%S")
-    viz_location = "/home/choudhue/PolicyGuide/evaluations/fullT/itps_point"
+    viz_location = "/home/choudhue/PolicyGuide/evaluations/3T/test"
     # evaluate a custom model
     if args.custom_model:
         model = CustomModel()

@@ -185,7 +185,7 @@ class DiffusionModel(nn.Module):
 
         self.rejection_sampling = False
         self.visualize_trajectories = False
-        self.use_ITPS = True
+        self.use_ITPS = False
 
         print("######### Rejection Sampling Info #########")
         print(f"Using ITPS: {self.use_ITPS}")
