@@ -219,7 +219,7 @@ def evaluate_sequence(env, model, task_checker, initial_state, eval_sequence, va
     """
     Evaluates a sequence of language instructions.
     """
-    gaussian_start_states = True
+    gaussian_start_states = False
     robot_obs, scene_obs = get_env_state_for_initial_condition(initial_state)
     gaussian_start_input = None
     if gaussian_start_states:
@@ -284,7 +284,7 @@ def evaluate_sequence(env, model, task_checker, initial_state, eval_sequence, va
         success = rollout(env, model, task_checker, subtask, val_annotations, 
                           plans, debug, save_viz, viz_folder, curr_time, 
                           rollout_video, data_module, gaussian_start_input, 
-                          initial_robot_obs, scene_obs)
+                          initial_robot_obs, scene_obs, i)
         if success:
             success_counter += 1
         else:
@@ -318,7 +318,7 @@ def combine_observations(observations: List[Dict[str, torch.Tensor]]) -> Dict[st
 
 def rollout(env, model, task_oracle, subtask, val_annotations, plans, 
             debug, save_viz, viz_folder, curr_time, rollout_video, data_module, 
-            gaussian_start_input=None, initial_robot_obs=None, scene_obs=None):
+            gaussian_start_input=None, initial_robot_obs=None, scene_obs=None, sequence_idx=0):
     """
     Run the actual rollout on one subtask (which is one natural language instruction).
     """
@@ -373,8 +373,8 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans,
 
         if aff_pred is not None:
             aff_pred = (aff_pred * 255).astype("uint8")
-            if save_viz:
-                affs.append(aff_pred)
+            # if save_viz:
+            #     affs.append(aff_pred)
         # save last action for padding
         # last_action = action[:, -1, :].squeeze().cpu().numpy()
 
@@ -410,7 +410,7 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans,
                     save_dir = os.path.join(viz_folder, f"eval_viz_{curr_time}")
                     sequence_time = time.strftime("%Y%m%d_%H%M%S")
                     gif_name = f"{sequence_time}_rollout_{subtask}_affordances_success.gif"
-                    save_images_and_create_gif(affs, save_dir, gif_name)
+                    # save_images_and_create_gif(affs, save_dir, gif_name)
                     
                     if start_states is not None and gaussian_start_input is not None:
                         # Save initial starting states
@@ -424,12 +424,12 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans,
             return True
     if debug:
         print(colored("task failed", "red"), end=" \n")
-        if save_viz:
+        if save_viz and sequence_idx % 50 == 0:
             # save images for gif
             save_dir = os.path.join(viz_folder, f"eval_viz_{curr_time}")
             sequence_time = time.strftime("%Y%m%d_%H%M%S")
             gif_name = f"{sequence_time}_rollout_{subtask}_affordances_fail.gif"
-            save_images_and_create_gif(affs, save_dir, gif_name)
+            # save_images_and_create_gif(affs, save_dir, gif_name)
 
             if start_states is not None and gaussian_start_input is not None:
                 # Save initial starting states
@@ -487,7 +487,7 @@ def main():
     args = parser.parse_args()
 
     curr_time = time.strftime("%Y%m%d_%H%M%S")
-    viz_location = "/home/choudhue/PolicyGuide/evaluations/fullT/rs_path"
+    viz_location = "/home/choudhue/PolicyGuide/evaluations/fullT/itps_point"
     # evaluate a custom model
     if args.custom_model:
         model = CustomModel()

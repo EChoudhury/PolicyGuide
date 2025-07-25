@@ -46,20 +46,20 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         stats_path: None = None,
         use_affordance: bool = True,
         affordance_duration: int = 10,
-        use_lang_encoding: bool = True,
-        normalize_language_embeddings: bool = False,
+        use_lang_encoding: bool = False,
+        normalize_language_embeddings: bool = True,
     ):
         super(ITPG, self).__init__()
 
         self.cuda_device = 2
 
         # affordance toggle
-        self.use_affordance = use_affordance
+        self.use_affordance = True #use_affordance
         self.affordance_duration = 100 #affordance_duration
 
         # language encoder toggle
         self.use_lang_encoding = use_lang_encoding
-        self.normalize_language_embeddings = normalize_language_embeddings
+        self.normalize_language_embeddings = True #normalize_language_embeddings
 
         # load stats dataset for normalization
         self.stats = self._get_stats(stats_path)
@@ -114,7 +114,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         # Testing Params
         self.affordance_mode = "time" # "time", "distance"
         self.dist_threshold = 0.15 # distance threshold for affordance
-        self.guide_mode = "path" # "point", "path", "trajectory"
+        self.guide_mode = "point" # "point", "path", "trajectory"
         if self.use_affordance:
             print("############ Affordance Info #############")
             print(f"Using Affordance: {self.use_affordance}")
@@ -337,13 +337,8 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
 
         # get text encodings
         if self.use_lang_encoding:
-            if self.normalize_language_embeddings:
-                # Normalize language embeddings
-                lang_embeds = self.language_encoder.encode_text(goal)[0]
-                converted_obs["observation.embedding"] = lang_embeds / lang_embeds.norm(dim=-1, keepdim=True)
-            else:
-                converted_obs["observation.embedding"] = self.language_encoder.encode_text(goal)[0]
-            
+            converted_obs["observation.embedding"] = self.language_encoder.encode([goal])
+
         # temporary hardcoded goal
         # goal = "use the switch to turn on the light bulb"
         # "pull the handle to open the drawer"
@@ -573,7 +568,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         # build the phrase index from the annotation dictionary
         phrases = list(set(annotation_dict.values()))
 
-        encodings = self.language_encoder.encode(phrases, True)
+        encodings = self.language_encoder.encode(phrases, self.normalize_language_embeddings)
 
         # encodings = []
         # for phrase in phrases:
@@ -669,7 +664,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         #     gpt_output = self.chatgpt_describer.describe([phrase])
         #     phrase = gpt_output.three_words
 
-        query_encoding = self.language_encoder.encode([phrase], True)
+        query_encoding = self.language_encoder.encode([phrase], self.normalize_language_embeddings)
 
         # query_encoding = self.language_encoder.encode_text(phrase)[0]
         similarities = torch.cosine_similarity(encodings, query_encoding[0].squeeze(0), dim=-1)

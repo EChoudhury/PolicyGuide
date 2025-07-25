@@ -183,9 +183,9 @@ class DiffusionModel(nn.Module):
             prediction_type=config.prediction_type,
         )
 
-        self.rejection_sampling = True
-        self.visualize_trajectories = True
-        self.use_ITPS = False
+        self.rejection_sampling = False
+        self.visualize_trajectories = False
+        self.use_ITPS = True
 
         print("######### Rejection Sampling Info #########")
         print(f"Using ITPS: {self.use_ITPS}")
@@ -319,7 +319,7 @@ class DiffusionModel(nn.Module):
             distances = torch.linalg.norm(last_actions - last_guide_action, dim=-1)  # (B,)
             
             # find index of best sample with minimum total distance
-            if guide_mode == "trajectory":
+            if guide_mode == "trajectory" or guide_mode == "path":
                 distances = torch.sum(distances, dim=-1)
                 
             # Find the index of the sample with the minimum distance.
@@ -369,7 +369,7 @@ class DiffusionModel(nn.Module):
                 ax.legend()
                 
                 # Create a directory to save plots if it doesn't exist
-                save_dir = "/home/choudhue/PolicyGuide/evaluations/fullT/rs_path/trajectories"
+                save_dir = "/home/choudhue/PolicyGuide/evaluations/fullT/rs_trajectory/trajectories"
                 os.makedirs(save_dir, exist_ok=True)
                 
                 # Generate a unique filename with a timestamp

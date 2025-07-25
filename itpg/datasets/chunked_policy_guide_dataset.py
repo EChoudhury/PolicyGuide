@@ -159,7 +159,7 @@ class ChunkedPolicyGuideDataset(IterableDataset):
             'observation.image_wrist': sample['rgb_obs']["rgb_gripper"][:self.n_obs_steps,:], 
             'observation.state': sample['robot_obs'][:self.n_obs_steps, :],
             'action': sample['actions'],
-            # 'language': sample['language'][:1],
+            'language': sample['language'][:1],
         }
         return data
     
@@ -176,6 +176,6 @@ class ChunkedPolicyGuideDataset(IterableDataset):
         seq_state_obs = process_state(episode, self.observation_space, self.transforms, self.proprio_state)
         seq_rgb_obs = process_rgb(episode, self.observation_space, self.transforms)
         seq_acts = process_actions(episode, self.observation_space, self.transforms)
-        # seq_lang = {"language": episode["language"][:1]}
-        seq_dict = {**seq_state_obs, **seq_rgb_obs, **seq_acts} #{**seq_state_obs, **seq_rgb_obs, **seq_acts, **seq_lang}
+        seq_lang = {"language": episode["language"][:1]}
+        seq_dict = {**seq_state_obs, **seq_rgb_obs, **seq_acts, **seq_lang}
         return seq_dict
