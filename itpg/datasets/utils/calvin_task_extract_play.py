@@ -16,6 +16,8 @@ import datetime
 import json
 from itpg.datasets.utils.robot_replay_buffer import RobotReplayBuffer
 # import torch
+import random
+
 
 logger = logging.getLogger(__name__)
 
@@ -35,19 +37,21 @@ class CALVINSkillExtractor:
         self,
         data_dir: str,
         save_dir: str,
-        skill_name: str,
         data_to_extract: list,
         step_len: int,
+        n_episodes: int = 3000,
     ):
         self.data_dir = Path(data_dir)
         self.save_dir = Path(save_dir)
-        self.skill_name = skill_name
         self.data_to_extract = data_to_extract
-        self.episode_lookup, self.annotations_idx = self.load_file_indices(self.data_dir, self.skill_name)
+        self.n_episodes = n_episodes
+        self.max_window_size = 32
+        self.min_window_size = 16
+        self.episode_lookup, self.annotations_idx = self.load_file_indices(self.data_dir)
         self.naming_pattern, self.n_digits = self.lookup_naming_pattern()
         self.step_len = step_len
         self.replay_buffer = RobotReplayBuffer.create_from_path(self.save_dir, mode="a")
-
+        
     def __len__(self) -> int:
         return len(self.episode_lookup)
 
@@ -88,7 +92,7 @@ class CALVINSkillExtractor:
         """
         episodes = [
             load_npz(self.get_episode_name(file_idx))
-            for file_idx in range(start_idx, end_idx + 1, self.step_len)
+            for file_idx in range(start_idx, end_idx)
         ]
         episode = {
             key: np.stack([ep[key] for ep in episodes])
@@ -108,11 +112,8 @@ class CALVINSkillExtractor:
         seq_depth_obs:  tuple of numpy arrays of depths observations
         seq_acts:       numpy array of actions
         """
-        info_indx = self.episode_lookup[idx]
-        start_file_indx = info_indx[0]
-        end_file_indx = info_indx[1]
-
-        lang_annotation = self.annotations_idx[idx]
+        start_file_indx = self.episode_lookup[idx]
+        end_file_indx = start_file_indx + self.max_window_size
 
         episode = self.zip_sequence(start_file_indx, end_file_indx)
 
@@ -135,59 +136,46 @@ class CALVINSkillExtractor:
         if "rgb_static" in self.data_to_extract:
             batch.update({"rgb_static": episode["rgb_static"].astype(np.int64)})
 
-        if "language" in self.data_to_extract:
-            batch.update({"language": lang_annotation})
-
         return batch
+        
 
-    def load_file_indices(self, data_dir: Path, skill: str) -> Tuple[List, List]:
+    def load_file_indices(self, abs_datasets_dir: Path) -> List:
         """
-        this method builds the mapping from index to file_name used for loading the episodes
-        parameters
-        ----------
-        data_dir:               absolute path of the directory containing the datasets
-        returns
-        ----------
-        episode_lookup:                 list for the mapping from training example index to episode (file) index
-        max_batched_length_per_demo:    list of possible starting indices per episode
+        This method builds the mapping from index to file_name used for loading the episodes of the non language
+        dataset.
+
+        Args:
+            abs_datasets_dir: Absolute path of the directory containing the dataset.
+
+        Returns:
+            episode_lookup: Mapping from training example index to episode (file) index.
         """
-        assert data_dir.is_dir()
-        skill_name = skill
+        assert abs_datasets_dir.is_dir()
 
         episode_lookup = []
 
-        file_name = data_dir / "lang_annotations" / "auto_lang_ann.npy"
-        data = np.load(file_name, allow_pickle=True).reshape(-1)[0]
+        # ep_start_end_ids = np.load(abs_datasets_dir / "ep_start_end_ids.npy")
+        # print(f'Found "ep_start_end_ids.npy" with {len(ep_start_end_ids)} episodes.')
+        # for start_idx, end_idx in ep_start_end_ids:
+        #     assert end_idx > self.max_window_size
+        start_idx = 53819
+        end_idx = 611098
 
-        all_eps_idx_part_task = [
-            i for (i, v) in enumerate(data["language"]["task"]) if v == skill_name
-        ]
-        # all_eps_idx_annotations = [
-        #     data["language"]["ann"][i] for i in all_eps_idx_part_task
-        # ]
-        all_eps_start_end_part_task = [
-            data["info"]["indx"][i] for i in all_eps_idx_part_task
-        ]
+        for idx in range(start_idx, end_idx + 1 - self.max_window_size, self.max_window_size):
+            episode_lookup.append(idx)
+            if len(episode_lookup) >= self.n_episodes:
+                print(f"Loaded {len(episode_lookup)} episodes from {abs_datasets_dir}.")
+                return episode_lookup, None
+        print(f"Loaded all {len(episode_lookup)} episodes from {abs_datasets_dir}.")
+        return episode_lookup, None
 
-        for i in range(len(all_eps_start_end_part_task)):
-            episode_lookup.append(all_eps_start_end_part_task[i])
 
-        logger.info(
-            f"Found {len(episode_lookup)} demonstrations of skill {skill_name}."
-        )
-        return episode_lookup, all_eps_idx_part_task
-
-def generate_episode_dict(episode, language):
+def generate_episode_dict(episode):
     eps_len = int(episode["robot_obs"].shape[0])
-
-    # Low-dim observations (robot_no_joints)
-    # selected_obs = list(range(0, 7)) + [14]
-    # state_obs = episode["robot_obs"][:, selected_obs]
 
     episode_dict = []
     for i in range(eps_len):
         episode_dict.append({
-            "language": language,
             "robot_obs": episode["robot_obs"][i],
             "rgb_static": episode["rgb_static"][i],
             "rgb_gripper": episode["rgb_gripper"][i],
@@ -197,45 +185,45 @@ def generate_episode_dict(episode, language):
 
     return episode_dict
 
-def make_dataset(load_path, save_dir, step_len, multi_dir=False):
+def make_dataset(load_path, save_dir, step_len, n_episodes=2000):
     if not os.path.exists(save_dir):
         os.makedirs(save_dir, exist_ok=True)
 
     skill_list = [
         "open_drawer",
-        "move_slider_left",
-        "lift_pink_block_table",
-        "push_pink_block_right",
-        "close_drawer",
-        "turn_on_lightbulb",
-        "turn_off_lightbulb",
-        "move_slider_right",
-        "turn_on_led",
-        "turn_off_led",
-        "lift_blue_block_drawer",
-        "lift_red_block_drawer",
-        "lift_pink_block_drawer",
-        "lift_blue_block_table",
-        "lift_red_block_table",
-        "lift_blue_block_slider",
-        "lift_red_block_slider",
-        "lift_pink_block_slider",
-        "push_blue_block_left",
-        "push_red_block_left",
-        "push_pink_block_left",
-        "push_blue_block_right",
-        "push_red_block_right",
-        "rotate_red_block_right",
-        "rotate_red_block_left",
-        "rotate_blue_block_right",
-        "rotate_blue_block_left",
-        "rotate_pink_block_right",
-        "rotate_pink_block_left",
-        "place_in_slider",
-        "place_in_drawer",
-        "stack_block",
-        "unstack_block",
-        "push_into_drawer",
+        # "move_slider_left",
+        # "lift_pink_block_table",
+        # "push_pink_block_right",
+        # "close_drawer",
+        # "turn_on_lightbulb",
+        # "turn_off_lightbulb",
+        # "move_slider_right",
+        # "turn_on_led",
+        # "turn_off_led",
+        # "lift_blue_block_drawer",
+        # "lift_red_block_drawer",
+        # "lift_pink_block_drawer",
+        # "lift_blue_block_table",
+        # "lift_red_block_table",
+        # "lift_blue_block_slider",
+        # "lift_red_block_slider",
+        # "lift_pink_block_slider",
+        # "push_blue_block_left",
+        # "push_red_block_left",
+        # "push_pink_block_left",
+        # "push_blue_block_right",
+        # "push_red_block_right",
+        # "rotate_red_block_right",
+        # "rotate_red_block_left",
+        # "rotate_blue_block_right",
+        # "rotate_blue_block_left",
+        # "rotate_pink_block_right",
+        # "rotate_pink_block_left",
+        # "place_in_slider",
+        # "place_in_drawer",
+        # "stack_block",
+        # "unstack_block",
+        # "push_into_drawer",
     ]
     data_to_extract = [
         "robot_obs",
@@ -243,18 +231,7 @@ def make_dataset(load_path, save_dir, step_len, multi_dir=False):
         "actions",
         "rgb_static",
         "rgb_gripper",
-        "language",
     ]
-
-    # Define the desired chunk sizes
-    desired_chunks = {
-        "robot_obs": (65, 15),  # Example: 76 time steps, 15 features
-        "rgb_static": (65, 200, 200, 3),  # Example: 76 time steps, 200x200 RGB images
-        "rgb_gripper": (65, 84, 84, 3),  # Example: 76 time steps, 84x84 RGB images
-        "actions": (65, 7),  # Example: 76 time steps, 7 action features
-        "language": (65,),  # Example: 76 time steps, single language annotation
-        "episode_step": (65,),  # Example: 76 time steps
-    }
 
     info = {
         "date": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
@@ -262,42 +239,31 @@ def make_dataset(load_path, save_dir, step_len, multi_dir=False):
         "skills": skill_list,
     }
 
-    for skill in tqdm(skill_list, disable=True):
-        logger.info(f"Extracting data for skill: {skill}")
+    logger.info(f"Extracting data...")
 
-        if multi_dir:
-            dir = os.path.join(save_dir, skill)
-            if not os.path.exists(dir):
-                os.makedirs(dir, exist_ok=True)
-        else:
-            dir = save_dir
+    extractor = CALVINSkillExtractor(
+        data_dir=load_path,
+        save_dir=save_dir,
+        data_to_extract=data_to_extract,
+        step_len=step_len,
+        n_episodes=n_episodes,
+    )
 
-        extractor = CALVINSkillExtractor(
-            data_dir=load_path,
-            save_dir=dir,
-            skill_name=skill,
-            data_to_extract=data_to_extract,
-            step_len=step_len,
-        )
+    for idx in tqdm(range(len(extractor))):
+        episode = extractor[idx]
 
-        # for idx in tqdm(range(len(extractor))):
-        extract_num = min(30, len(extractor))  # Limit to 30 episodes for testing
-        print(f"Extracting {extract_num} episodes for skill: {skill}")
-        for idx in tqdm(range(extract_num)):
-            episode = extractor[idx]
-            
-            episode_dict = generate_episode_dict(episode, extractor.annotations_idx[idx])
+        episode_dict = generate_episode_dict(episode)
 
-            extractor.replay_buffer.add_episode_from_list(episode_dict, compressors="disk") #chunks=desired_chunks,
-            # print(f"Saving episode for {skill}...")
-            # np.savez(
-            #     os.path.join(save_dir, f"{skill}.npz"),
-            #     states=states,
-            #     actions=actions,
-            #     traj_lengths=traj_lengths.astype(int),
-            #     rgb_statics=rgb_statics,
-            #     rgb_grippers=rgb_grippers,
-            # )
+        extractor.replay_buffer.add_episode_from_list(episode_dict, compressors="disk") #chunks=desired_chunks,
+        # print(f"Saving episode for {skill}...")
+        # np.savez(
+        #     os.path.join(save_dir, f"{skill}.npz"),
+        #     states=states,
+        #     actions=actions,
+        #     traj_lengths=traj_lengths.astype(int),
+        #     rgb_statics=rgb_statics,
+        #     rgb_grippers=rgb_grippers,
+        # )
 
     path = os.path.join(save_dir, "info.json")
     if not os.path.isfile(path):
@@ -318,11 +284,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--save_dir",
         type=str,
-        default="/home/choudhue/PolicyGuide/dataset/calvin_D_FullT30_dataset",
+        default="/home/choudhue/PolicyGuide/dataset/calvin_D_full_play_dataset",
     )
     parser.add_argument("--step_len", type=int, default=1)
     parser.add_argument("--full", help="Use this flag to load both training and validation data.", action=argparse.BooleanOptionalAction)
-    parser.add_argument("--multi", help="Use this flag to create a separate folder for each task.", action=argparse.BooleanOptionalAction)
+    parser.add_argument("--n_episodes_train", type=int, default=600000, help="Number of episodes to extract.")
+    parser.add_argument("--n_episodes_val", type=int, default=10, help="Number of episodes to extract.")
     args = parser.parse_args()
 
     print(args)
@@ -331,10 +298,10 @@ if __name__ == "__main__":
         # Load training data
         load_path = os.path.join(args.load_path, "training")
         save_dir = os.path.join(args.save_dir, "training")
-        make_dataset(load_path, save_dir, args.step_len, args.multi)
+        make_dataset(load_path, save_dir, args.step_len, n_episodes=args.n_episodes_train)
         # Load validation data
         load_path = os.path.join(args.load_path, "validation")
         save_dir = os.path.join(args.save_dir, "validation")
-        make_dataset(load_path, save_dir, args.step_len, args.multi)
+        make_dataset(load_path, save_dir, args.step_len, n_episodes=args.n_episodes_val)
     else:
-        make_dataset(args.load_path, args.save_dir, args.step_len, args.multi)
+        make_dataset(args.load_path, args.save_dir, args.step_len, n_episodes=args.n_episodes_train)

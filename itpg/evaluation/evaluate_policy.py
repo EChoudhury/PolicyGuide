@@ -48,7 +48,7 @@ from calvin_env.envs.play_table_env import get_env
 logger = logging.getLogger(__name__)
 
 EP_LEN = 45  # 8 actions step
-NUM_SEQUENCES = 1000
+NUM_SEQUENCES = 100
 
 
 def get_epoch(checkpoint):
@@ -197,7 +197,7 @@ def evaluate_policy(model, env, epoch, eval_log_dir=None, debug=False, create_pl
 
     for initial_state, eval_sequence in eval_sequences:
         with torch.amp.autocast('cuda'):
-            result = evaluate_sequence(env, model, task_oracle, initial_state, eval_sequence, val_annotations, plans, debug, save_viz, viz_folder, curr_time, data_module)
+            result = evaluate_sequence(env, model, task_oracle, initial_state, eval_sequence, val_annotations, plans, debug, save_viz, viz_folder, curr_time, data_module, sequence_idx=len(results))
         results.append(result)
         if not debug:
             eval_sequences.set_description(
@@ -215,7 +215,7 @@ def evaluate_policy(model, env, epoch, eval_log_dir=None, debug=False, create_pl
 
 
 def evaluate_sequence(env, model, task_checker, initial_state, eval_sequence, val_annotations, 
-                      plans, debug, save_viz, viz_folder, curr_time, data_module):
+                      plans, debug, save_viz, viz_folder, curr_time, data_module, sequence_idx=0):
     """
     Evaluates a sequence of language instructions.
     """
@@ -291,7 +291,8 @@ def evaluate_sequence(env, model, task_checker, initial_state, eval_sequence, va
         if success:
             success_counter += 1
         else:
-            rollout_video.log(0)
+            if success_counter > 1 or sequence_idx % 25 == 0:
+                rollout_video.log(0)
             return success_counter
     
     rollout_video.log(0)
@@ -427,7 +428,7 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans,
             return True
     if debug:
         print(colored("task failed", "red"), end=" \n")
-        if save_viz and sequence_idx % 50 == 0:
+        if save_viz:
             # save images for gif
             save_dir = os.path.join(viz_folder, f"eval_viz_{curr_time}")
             sequence_time = time.strftime("%Y%m%d_%H%M%S")
@@ -486,11 +487,16 @@ def main():
 
     parser.add_argument("--eval_log_dir", default=None, type=str, help="Where to log the evaluation results.")
 
-    parser.add_argument("--device", default=0, type=int, help="CUDA device")
+    parser.add_argument("--device", default=3, type=int, help="CUDA device")
     args = parser.parse_args()
 
     curr_time = time.strftime("%Y%m%d_%H%M%S")
-    viz_location = "/home/choudhue/PolicyGuide/evaluations/3T/test"
+    viz_location = "/home/choudhue/PolicyGuide/evaluations/ablations/affordance_duration/time_30/fullt_itps_trajectory"
+    print("###############################################")
+    print(f"Current time: {curr_time}")
+    print(f"Visualization location: {viz_location}")
+    print(f"CUDA device: {args.device}")
+    print("###############################################")
     # evaluate a custom model
     if args.custom_model:
         model = CustomModel()

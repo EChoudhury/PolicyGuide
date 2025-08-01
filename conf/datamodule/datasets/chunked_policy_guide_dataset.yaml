@@ -1,6 +1,6 @@
 _target_: itpg.datasets.chunked_policy_guide_dataset.ChunkedPolicyGuideDataset
-dataset_dir: /home/choudhue/PolicyGuide/dataset/calvin_D_3T_dataset
-abs_datasets_dir: /home/choudhue/PolicyGuide/dataset/calvin_3T_dataset
+dataset_dir: /home/choudhue/PolicyGuide/dataset/calvin_D_ST_dataset
+abs_datasets_dir: /home/choudhue/PolicyGuide/dataset/calvin_ST_dataset
 lang_folder: "lang_annotations"
 proprio_state: ${datamodule.proprioception_dims} #${proprioception_dims} #
 obs_space: ${datamodule.observation_space} #${observation_space} #

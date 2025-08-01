@@ -12,7 +12,7 @@ import hydra
 import time
 
 @hydra.main(config_path="/home/choudhue/PolicyGuide/conf/datamodule", config_name="default")
-def visualize_dataset(cfg: DictConfig, gui=True) -> None:
+def visualize_dataset(cfg: DictConfig, gui=False) -> None:
     # Path to the Zarr dataset
     zarr_path = "/home/choudhue/PolicyGuide/dataset/calvin_D_play_dataset"
 
@@ -77,12 +77,12 @@ def visualize_dataset(cfg: DictConfig, gui=True) -> None:
                 cv2.imshow(gripper_win, img_gripper)
             else:
                 images.append(img)
-                labels.append(language + "_1")
-                images.append(img2)
-                labels.append(language + "_2")
+                # labels.append(language + "_1")
+                # images.append(img2)
+                # labels.append(language + "_2")
             # Raw Data  
             # print(f"Sample {idx}: \nAction: {action}, \nState: {state}, \nLanguage: {language}\n\n")
-            # gif_name = f"{idx}_{i}"
+            gif_name = f"{idx}_{i}"
             # gif_name = language
             
             # Wait for a short duration or until 'q' is pressed
@@ -103,7 +103,7 @@ def visualize_dataset(cfg: DictConfig, gui=True) -> None:
     if gui:
         cv2.destroyAllWindows()
 
-def save_images_and_create_gif(images: List[np.ndarray], save_dir: str = "/home/choudhue/PolicyGuide/viz", gif_name: str = "rollout.gif", fps: int = 30, lang=None):
+def save_images_and_create_gif(images: List[np.ndarray], save_dir: str = "/home/choudhue/PolicyGuide/viz/example_rollout_play", gif_name: str = "rollout.gif", fps: int = 5, lang=None):
     """
     Save images from observations and create a GIF.
 

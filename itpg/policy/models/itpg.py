@@ -46,19 +46,19 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         stats_path: None = None,
         use_affordance: bool = True,
         affordance_duration: int = 10,
-        use_lang_encoding: bool = True,
+        use_lang_encoding: bool = False,
         normalize_language_embeddings: bool = True,
     ):
         super(ITPG, self).__init__()
 
-        self.cuda_device = 1
+        self.cuda_device = 3
 
         # affordance toggle
-        self.use_affordance = use_affordance
-        self.affordance_duration = affordance_duration
+        self.use_affordance = True #use_affordance
+        self.affordance_duration = 30 #affordance_duration
 
         # language encoder toggle
-        self.use_lang_encoding = use_lang_encoding
+        self.use_lang_encoding = False #use_lang_encoding
         self.normalize_language_embeddings = normalize_language_embeddings
 
         # load stats dataset for normalization
@@ -74,7 +74,7 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         # load affordance policy network
         self.camera = self._get_camera(affordance_checkpoint.merged_folder)
         self.affordance_policy, _ = get_aff_model(**affordance_checkpoint.model)
-        # self.affordance_policy = self.affordance_policy.cuda(2)
+        self.affordance_policy = self.affordance_policy.cuda(self.cuda_device)
 
         # load language encoder
         # if self.use_lang_encoding:
@@ -113,12 +113,13 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
 
         # Testing Params
         self.affordance_mode = "time" # "time", "distance"
-        self.dist_threshold = 0.15 # distance threshold for affordance
-        self.guide_mode = "point" # "point", "path", "trajectory"
+        self.dist_threshold = 0.125 # distance threshold for affordance
+        self.guide_mode = "trajectory" # "point", "path", "trajectory"
         if self.use_affordance:
             print("############ Affordance Info #############")
             print(f"Using Affordance: {self.use_affordance}")
             print(f"Affordance Duration Mode: {self.affordance_mode}")
+            print(f"Affordance Duration: {self.affordance_duration}")
             print(f"Guide Mode: {self.guide_mode}")
             print(f"Distance Threshold: {self.dist_threshold}")
             print("##########################################")

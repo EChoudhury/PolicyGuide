@@ -185,7 +185,7 @@ class DiffusionModel(nn.Module):
 
         self.rejection_sampling = False
         self.visualize_trajectories = False
-        self.use_ITPS = False
+        self.use_ITPS = True
 
         print("######### Rejection Sampling Info #########")
         print(f"Using ITPS: {self.use_ITPS}")
@@ -369,7 +369,7 @@ class DiffusionModel(nn.Module):
                 ax.legend()
                 
                 # Create a directory to save plots if it doesn't exist
-                save_dir = "/home/choudhue/PolicyGuide/evaluations/fullT/rs_trajectory/trajectories"
+                save_dir = "/home/choudhue/PolicyGuide/evaluations/ablations/fullt_itps_point/trajectories"
                 os.makedirs(save_dir, exist_ok=True)
                 
                 # Generate a unique filename with a timestamp
@@ -401,7 +401,7 @@ class DiffusionModel(nn.Module):
             
             if guide_mode == "point" or guide_mode == "path" or guide_mode == "trajectory":
                 mask = torch.ones_like(naction, dtype=torch.bool)
-                mask[:, :, 3:] = False  # Only compute gradient for the first three actions
+                mask[:, :, 3:] = False  # Only compute gradient for xyz position
                 diff = (naction - guide) * mask
                 dist = torch.linalg.norm(diff, dim=2, ord=2)
             else:
