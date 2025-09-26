@@ -78,7 +78,7 @@ def visualize_dataset(cfg: DictConfig, gui=False) -> None:
             else:
                 images.append(img)
                 # labels.append(language + "_1")
-                # images.append(img2)
+                images.append(img_gripper)
                 # labels.append(language + "_2")
             # Raw Data  
             # print(f"Sample {idx}: \nAction: {action}, \nState: {state}, \nLanguage: {language}\n\n")
@@ -132,8 +132,8 @@ def save_images_and_create_gif(images: List[np.ndarray], save_dir: str = "/home/
         for img_path in image_paths:
             writer.append_data(imageio.imread(img_path))
 
-    for img_path in image_paths:
-        os.remove(img_path)
+    # for img_path in image_paths:
+    #     os.remove(img_path)
 
     print(f"GIF saved at {gif_path}")
 

@@ -48,7 +48,7 @@ from calvin_env.envs.play_table_env import get_env
 logger = logging.getLogger(__name__)
 
 EP_LEN = 45  # 8 actions step
-NUM_SEQUENCES = 100
+NUM_SEQUENCES = 500
 
 
 def get_epoch(checkpoint):
@@ -181,13 +181,15 @@ def evaluate_policy(model, env, epoch, eval_log_dir=None, debug=False, create_pl
 
     eval_log_dir = get_log_dir(viz_folder)
 
-    if full_eval:
-        eval_sequences = get_sequences(NUM_SEQUENCES)
-    else:
-        # Temporary hardcoded sequences for testing
-        eval_sequences = [({'led': 0, 'lightbulb': 0, 'slider': 'left', 'drawer': 'closed', 'red_block': 'table', 'blue_block': 'slider_right', 'pink_block': 'slider_left', 'grasped': 0}, (('turn_on_lightbulb', 'open_drawer', 'turn_on_led'))),
-                        ({'led': 0, 'lightbulb': 0, 'slider': 'right', 'drawer': 'closed', 'red_block': 'slider_right', 'blue_block': 'slider_left', 'pink_block': 'table', 'grasped': 0}, (('open_drawer', 'turn_on_led', 'turn_on_lightbulb'))),
-                        ({'led': 0, 'lightbulb': 0, 'slider': 'right', 'drawer': 'closed', 'red_block': 'table', 'blue_block': 'slider_left', 'pink_block': 'table', 'grasped': 0}, (('turn_on_led', 'turn_on_lightbulb', 'open_drawer')))]
+    eval_sequences = get_sequences(NUM_SEQUENCES)
+
+    # if full_eval:
+    #     eval_sequences = get_sequences(NUM_SEQUENCES)
+    # else:
+    #     # Temporary hardcoded sequences for testing
+    #     eval_sequences = [({'led': 0, 'lightbulb': 0, 'slider': 'left', 'drawer': 'closed', 'red_block': 'table', 'blue_block': 'slider_right', 'pink_block': 'slider_left', 'grasped': 0}, (('turn_on_lightbulb', 'open_drawer', 'turn_on_led'))),
+    #                     ({'led': 0, 'lightbulb': 0, 'slider': 'right', 'drawer': 'closed', 'red_block': 'slider_right', 'blue_block': 'slider_left', 'pink_block': 'table', 'grasped': 0}, (('open_drawer', 'turn_on_led', 'turn_on_lightbulb'))),
+    #                     ({'led': 0, 'lightbulb': 0, 'slider': 'right', 'drawer': 'closed', 'red_block': 'table', 'blue_block': 'slider_left', 'pink_block': 'table', 'grasped': 0}, (('turn_on_led', 'turn_on_lightbulb', 'open_drawer')))]
         
     results = []
     plans = defaultdict(list)
@@ -291,8 +293,9 @@ def evaluate_sequence(env, model, task_checker, initial_state, eval_sequence, va
         if success:
             success_counter += 1
         else:
-            if success_counter > 1 or sequence_idx % 25 == 0:
-                rollout_video.log(0)
+            # if success_counter > 1 or sequence_idx % 25 == 0:
+            #     rollout_video.log(0)
+            rollout_video.log(0)
             return success_counter
     
     rollout_video.log(0)
@@ -419,7 +422,7 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans,
                     if start_states is not None and gaussian_start_input is not None:
                         # Save initial starting states
                         save_states_folder = os.path.join(save_dir, f"states_{sequence_time}")
-                        save_images_and_create_gif(start_states, save_states_folder, toggle_gif=True)
+                        # save_images_and_create_gif(start_states, save_states_folder, toggle_gif=True)
 
                     rollout_video.add_language_instruction(subtask)
                     # rollout_video.add_goal_thumbnail(torch.from_numpy(affs[-1]).permute(2, 0, 1))
@@ -438,7 +441,7 @@ def rollout(env, model, task_oracle, subtask, val_annotations, plans,
             if start_states is not None and gaussian_start_input is not None:
                 # Save initial starting states
                 save_states_folder = os.path.join(save_dir, f"states_{sequence_time}")
-                save_images_and_create_gif(start_states, save_states_folder, toggle_gif=True)
+                # save_images_and_create_gif(start_states, save_states_folder, toggle_gif=True)
 
             rollout_video.add_language_instruction(subtask)
             # rollout_video.add_goal_thumbnail(torch.from_numpy(affs[-1]).permute(2, 0, 1))
@@ -487,11 +490,11 @@ def main():
 
     parser.add_argument("--eval_log_dir", default=None, type=str, help="Where to log the evaluation results.")
 
-    parser.add_argument("--device", default=3, type=int, help="CUDA device")
+    parser.add_argument("--device", default=1, type=int, help="CUDA device")
     args = parser.parse_args()
 
     curr_time = time.strftime("%Y%m%d_%H%M%S")
-    viz_location = "/home/choudhue/PolicyGuide/evaluations/ablations/affordance_duration/time_30/fullt_itps_trajectory"
+    viz_location = "/home/choudhue/PolicyGuide/viz/visualize_policy/" + curr_time
     print("###############################################")
     print(f"Current time: {curr_time}")
     print(f"Visualization location: {viz_location}")

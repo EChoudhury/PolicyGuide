@@ -51,11 +51,11 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
     ):
         super(ITPG, self).__init__()
 
-        self.cuda_device = 3
+        self.cuda_device = 1
 
         # affordance toggle
         self.use_affordance = True #use_affordance
-        self.affordance_duration = 30 #affordance_duration
+        self.affordance_duration = 1000 #affordance_duration
 
         # language encoder toggle
         self.use_lang_encoding = False #use_lang_encoding
@@ -580,60 +580,300 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
 
         return phrases, encodings
 
-    def plot_trajectories_3d(self, max_trajs_per_task=30, single_task="rotate_blue_block_right"):
-        """
-        Plots 3D trajectories from self.val_id_to_actions.
-        Each task ID has up to `max_trajs_per_task` trajectories plotted and labeled once in the legend.
+    # def plot_trajectories_3d(self, max_trajs_per_task=10, single_task=None):
+    #     """
+    #     Animates 3D trajectories from self.val_id_to_actions.
+    #     Each task ID has up to `max_trajs_per_task` trajectories plotted and labeled once in the legend.
         
-        Assumes: self.val_id_to_actions[task_id].shape == (100, 65, 7)
+    #     Assumes: self.val_id_to_actions[task_id] is a list of numpy arrays with shape (N, 7).
+    #     """
+    #     import matplotlib.pyplot as plt
+    #     from mpl_toolkits.mplot3d import Axes3D
+    #     import matplotlib.cm as cm
+    #     from matplotlib.animation import FuncAnimation
+    #     import numpy as np
+
+    #     fig = plt.figure(figsize=(12, 10))
+    #     ax = fig.add_subplot(111, projection='3d')
+
+    #     task_ids = list(self.val_id_to_actions.keys())
+    #     colormap = cm.get_cmap('hsv', len(task_ids))
+    #     task_to_color = {task_id: colormap(i) for i, task_id in enumerate(task_ids)}
+
+    #     trajectories_to_plot = []
+    #     max_len = 0
+        
+    #     # New structures to handle sequential animation
+    #     trajectories_by_task = {}
+    #     task_order = []
+    #     max_len_by_task = {}
+
+    #     for task_id, traj_batch in self.val_id_to_actions.items():
+    #         if single_task is not None and task_id != single_task:
+    #             continue
+
+    #         skills = [
+    #             "open_drawer",
+    #             "move_slider_left",
+    #             "lift_pink_block_table",
+    #             "push_pink_block_right",
+    #             "close_drawer",
+    #             "turn_on_lightbulb",
+    #             "turn_off_lightbulb",
+    #             "move_slider_right",
+    #             "turn_on_led",
+    #             "turn_off_led",
+    #             "lift_blue_block_drawer",
+    #             "lift_red_block_drawer",
+    #             "lift_pink_block_drawer",
+    #             "lift_blue_block_table",
+    #             "lift_red_block_table",
+    #             "lift_blue_block_slider",
+    #             "lift_red_block_slider",
+    #             "lift_pink_block_slider",
+    #             "push_blue_block_left",
+    #             "push_red_block_left",
+    #             "push_pink_block_left",
+    #             "push_blue_block_right",
+    #             "push_red_block_right",
+    #             "rotate_red_block_right",
+    #             "rotate_red_block_left",
+    #             "rotate_blue_block_right",
+    #             "rotate_blue_block_left",
+    #             "rotate_pink_block_right",
+    #             "rotate_pink_block_left",
+    #             "place_in_slider",
+    #             "place_in_drawer",
+    #             "stack_block",
+    #             "unstack_block",
+    #             "push_into_drawer"
+    #         ]
+
+    #         if task_id not in skills:
+    #             continue
+
+    #         if task_id not in task_order:
+    #             task_order.append(task_id)
+    #             trajectories_by_task[task_id] = []
+    #             max_len_by_task[task_id] = 0
+
+    #         traj_list = [np.array(action) for action in traj_batch]
+    #         count = 0
+    #         for i, traj in enumerate(traj_list):
+    #             if not isinstance(traj, np.ndarray) or traj.ndim != 2 or traj.shape[1] != 7:
+    #                 print(f"Skipping trajectory {i} in task {task_id} due to shape: {traj.shape if isinstance(traj, np.ndarray) else 'Invalid type'}")
+    #                 continue
+                
+    #             label = f"Task {task_id}" if count == 0 else None
+    #             # Append to flat list for line creation
+    #             trajectories_to_plot.append({'traj': traj, 'color': task_to_color[task_id], 'label': label, 'task_id': task_id})
+    #             # Append to grouped dictionary for animation logic
+    #             trajectories_by_task[task_id].append(traj)
+
+    #             if len(traj) > max_len_by_task[task_id]:
+    #                 max_len_by_task[task_id] = len(traj)
+                
+    #             count += 1
+    #             if count >= max_trajs_per_task:
+    #                 break
+        
+    #     lines = [ax.plot([], [], [], label=d['label'], color=d['color'], alpha=0.7)[0] for d in trajectories_to_plot]
+        
+    #     # Map line index to its trajectory data
+    #     line_to_traj = {i: d for i, d in enumerate(trajectories_to_plot)}
+
+    #     # Calculate frame boundaries for each task's animation
+    #     task_frame_boundaries = {}
+    #     cumulative_frames = 0
+    #     for task_id in task_order:
+    #         start_frame = cumulative_frames
+    #         duration = max_len_by_task[task_id]
+    #         cumulative_frames += duration
+    #         task_frame_boundaries[task_id] = (start_frame, start_frame + duration)
+        
+    #     total_frames = cumulative_frames
+
+    #     def init():
+    #         for line in lines:
+    #             line.set_data([], [])
+    #             line.set_3d_properties([])
+    #         return lines
+
+    #     def animate(t):
+    #         # Determine current active task
+    #         active_task_id = None
+    #         for task_id, (start, end) in task_frame_boundaries.items():
+    #             if start <= t < end:
+    #                 active_task_id = task_id
+    #                 break
+            
+    #         # Update lines based on animation progress
+    #         for i, line in enumerate(lines):
+    #             traj_info = line_to_traj[i]
+    #             traj = traj_info['traj']
+    #             current_task_id = traj_info['task_id']
+                
+    #             if current_task_id == active_task_id:
+    #                 # Animate this trajectory
+    #                 start_frame = task_frame_boundaries[current_task_id][0]
+    #                 current_frame_in_task = t - start_frame
+    #                 if current_frame_in_task < len(traj):
+    #                     x, y, z = traj[:current_frame_in_task+1, 0], traj[:current_frame_in_task+1, 1], traj[:current_frame_in_task+1, 2]
+    #                     line.set_data(x, y)
+    #                     line.set_3d_properties(z)
+    #             elif task_order.index(current_task_id) < task_order.index(active_task_id):
+    #                 # Draw completed trajectory for past tasks
+    #                 x, y, z = traj[:, 0], traj[:, 1], traj[:, 2]
+    #                 line.set_data(x, y)
+    #                 line.set_3d_properties(z)
+    #             else:
+    #                 # Keep future task trajectories empty
+    #                 line.set_data([], [])
+    #                 line.set_3d_properties([])
+
+    #         return lines
+
+    #     if single_task is not None:
+    #         ax.set_title(f"3D Trajectories for {single_task} Task")
+    #     ax.set_xlabel("X")
+    #     ax.set_ylabel("Y")
+    #     ax.set_zlabel("Z")
+
+    #     ax.set_xlim([-0.4, 0.4])
+    #     ax.set_ylim([-0.5, 0.3])
+    #     ax.set_zlim([0.1, 0.9])
+
+    #     ax.legend()
+        
+    #     ani = FuncAnimation(fig, animate, frames=total_frames, init_func=init, blit=True, interval=50)
+
+    #     ani.save('FullT_trajectory_animation.gif', writer='pillow', fps=30)
+    #     plt.savefig('FullT_trajectory.png', bbox_inches='tight')
+    #     plt.tight_layout()
+    #     plt.show()
+
+    def plot_trajectories_3d(self, max_trajs_per_task=10, single_task=None):
+        """
+        Animates 3D trajectories from self.val_id_to_actions.
+        Trajectories are colored based on task groups.
+        Each task ID has up to `max_trajs_per_task` trajectories plotted.
+        
+        Assumes: self.val_id_to_actions[task_id] is a list of numpy arrays with shape (N, 7).
         """
         import matplotlib.pyplot as plt
         from mpl_toolkits.mplot3d import Axes3D
         import matplotlib.cm as cm
+        from matplotlib.animation import FuncAnimation
+        import numpy as np
+        from matplotlib.lines import Line2D
+
         fig = plt.figure(figsize=(12, 10))
         ax = fig.add_subplot(111, projection='3d')
 
-        # Generate a distinct color for each task using a colormap
-        task_ids = list(self.val_id_to_actions.keys())
-        colormap = cm.get_cmap('tab20', len(task_ids))  # Or 'tab20', 'hsv', etc.
-        task_to_color = {task_id: colormap(i) for i, task_id in enumerate(task_ids)}
+        task_groups = {
+            "Drawer Tasks": ["open_drawer", "close_drawer", "push_into_drawer", "lift_blue_block_drawer", "lift_red_block_drawer", "lift_pink_block_drawer", "place_in_drawer"],
+            "Slider Tasks": ["move_slider_left", "move_slider_right", "lift_blue_block_slider", "lift_red_block_slider", "lift_pink_block_slider", "place_in_slider"],
+            "Lightbulb Tasks": ["turn_on_lightbulb", "turn_off_lightbulb"],
+            "LED Tasks": ["turn_on_led", "turn_off_led"],
+            "Block Lifting": ["lift_pink_block_table", "lift_blue_block_table", "lift_red_block_table"],
+            "Block Pushing": ["push_pink_block_right", "push_blue_block_left", "push_red_block_left", "push_pink_block_left", "push_blue_block_right", "push_red_block_right"],
+            "Block Rotating": ["rotate_red_block_right", "rotate_red_block_left", "rotate_blue_block_right", "rotate_blue_block_left", "rotate_pink_block_right", "rotate_pink_block_left"],
+            "Stacking": ["stack_block", "unstack_block"]
+        }
+        
+        task_to_group = {task: group for group, tasks in task_groups.items() for task in tasks}
+        
+        group_names = list(task_groups.keys())
+        colormap = cm.get_cmap('tab10', len(group_names))
+        group_to_color = {group: colormap(i) for i, group in enumerate(group_names)}
+
+        trajectories_to_plot = []
+        trajectories_by_task = {}
+        task_order = []
+        max_len_by_task = {}
 
         for task_id, traj_batch in self.val_id_to_actions.items():
-            traj_list = [np.array(action) for action in traj_batch]
-
-            if not isinstance(traj_list, (list, tuple)):
-                print(f"Task {task_id} is not a list, skipping.")
-                continue
-
             if single_task is not None and task_id != single_task:
-                print(f"Task {task_id} is not {single_task}, skipping.")
                 continue
 
-            # skills = ["open_drawer", "move_slider_left", "close_drawer", "turn_on_lightbulb", "turn_off_lightbulb", "move_slider_right", "turn_on_led", "turn_off_led", "lift_blue_block_drawer", "lift_red_block_drawer", "lift_pink_block_drawer", "lift_blue_block_table", "lift_red_block_table", "lift_blue_block_slider", "lift_red_block_slider", "lift_pink_block_slider", "unstack_block"]
-            # if task_id not in skills:
-            #     print(f"Task {task_id} is not {single_task}, skipping.")
-            #     continue
+            group = task_to_group.get(task_id)
+            if not group:
+                continue
 
+            if task_id not in task_order:
+                task_order.append(task_id)
+                trajectories_by_task[task_id] = []
+                max_len_by_task[task_id] = 0
+
+            color = group_to_color[group]
+            traj_list = [np.array(action) for action in traj_batch]
             count = 0
             for i, traj in enumerate(traj_list):
                 if not isinstance(traj, np.ndarray) or traj.ndim != 2 or traj.shape[1] != 7:
                     print(f"Skipping trajectory {i} in task {task_id} due to shape: {traj.shape if isinstance(traj, np.ndarray) else 'Invalid type'}")
                     continue
+                
+                trajectories_to_plot.append({'traj': traj, 'color': color, 'task_id': task_id})
+                trajectories_by_task[task_id].append(traj)
 
-                x, y, z = traj[:, 0], traj[:, 1], traj[:, 2]
-                color = task_to_color[task_id]
-                label = f"Task {task_id}" if count == 0 else None  # Only label once per task
-
-                ax.plot(x, y, z, label=label, color=color, alpha=0.7)
+                if len(traj) > max_len_by_task[task_id]:
+                    max_len_by_task[task_id] = len(traj)
+                
                 count += 1
-
                 if count >= max_trajs_per_task:
                     break
+        
+        lines = [ax.plot([], [], [], color=d['color'], alpha=0.7)[0] for d in trajectories_to_plot]
+        
+        line_to_traj = {i: d for i, d in enumerate(trajectories_to_plot)}
 
-        if single_task is not None and task_id != single_task:
+        task_frame_boundaries = {}
+        cumulative_frames = 0
+        for task_id in task_order:
+            start_frame = cumulative_frames
+            duration = max_len_by_task[task_id]
+            cumulative_frames += duration
+            task_frame_boundaries[task_id] = (start_frame, start_frame + duration)
+        
+        total_frames = cumulative_frames
+
+        def init():
+            for line in lines:
+                line.set_data([], [])
+                line.set_3d_properties([])
+            return lines
+
+        def animate(t):
+            active_task_id = None
+            for task_id, (start, end) in task_frame_boundaries.items():
+                if start <= t < end:
+                    active_task_id = task_id
+                    break
+            
+            for i, line in enumerate(lines):
+                traj_info = line_to_traj[i]
+                traj = traj_info['traj']
+                current_task_id = traj_info['task_id']
+                
+                if current_task_id == active_task_id:
+                    start_frame = task_frame_boundaries[current_task_id][0]
+                    current_frame_in_task = t - start_frame
+                    if current_frame_in_task < len(traj):
+                        x, y, z = traj[:current_frame_in_task+1, 0], traj[:current_frame_in_task+1, 1], traj[:current_frame_in_task+1, 2]
+                        line.set_data(x, y)
+                        line.set_3d_properties(z)
+                elif task_order.index(current_task_id) < (task_order.index(active_task_id) if active_task_id else -1):
+                    x, y, z = traj[:, 0], traj[:, 1], traj[:, 2]
+                    line.set_data(x, y)
+                    line.set_3d_properties(z)
+                else:
+                    line.set_data([], [])
+                    line.set_3d_properties([])
+
+            return lines
+
+        if single_task is not None:
             ax.set_title(f"3D Trajectories for {single_task} Task")
-        else:
-            ax.set_title("3D Trajectories for All Tasks")
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
         ax.set_zlabel("Z")
@@ -642,9 +882,81 @@ class ITPG(pl.LightningModule, CalvinBaseModel):
         ax.set_ylim([-0.5, 0.3])
         ax.set_zlim([0.1, 0.9])
 
-        ax.legend()
+        legend_elements = [Line2D([0], [0], color=color, lw=4, label=group) for group, color in group_to_color.items()]
+        ax.legend(handles=legend_elements)
+        
+        ani = FuncAnimation(fig, animate, frames=total_frames, init_func=init, blit=True, interval=50)
+
+        ani.save('FullT_trajectory_animation_grouped.gif', writer='pillow', fps=30)
+        plt.savefig('FullT_trajectory_grouped.png', bbox_inches='tight')
         plt.tight_layout()
         plt.show()
+
+    # def plot_trajectories_3d(self, max_trajs_per_task=30, single_task=None):
+    #     """
+    #     Plots 3D trajectories from self.val_id_to_actions.
+    #     Each task ID has up to `max_trajs_per_task` trajectories plotted and labeled once in the legend.
+        
+    #     Assumes: self.val_id_to_actions[task_id].shape == (100, 65, 7)
+    #     """
+    #     import matplotlib.pyplot as plt
+    #     from mpl_toolkits.mplot3d import Axes3D
+    #     import matplotlib.cm as cm
+    #     fig = plt.figure(figsize=(12, 10))
+    #     ax = fig.add_subplot(111, projection='3d')
+
+    #     # Generate a distinct color for each task using a colormap
+    #     task_ids = list(self.val_id_to_actions.keys())
+    #     colormap = cm.get_cmap('tab10', len(task_ids))  #'tab20', 'tab20c'
+    #     task_to_color = {task_id: colormap(i) for i, task_id in enumerate(task_ids)}
+
+    #     for task_id, traj_batch in self.val_id_to_actions.items():
+    #         traj_list = [np.array(action) for action in traj_batch]
+
+    #         if not isinstance(traj_list, (list, tuple)):
+    #             print(f"Task {task_id} is not a list, skipping.")
+    #             continue
+
+    #         if single_task is not None and task_id != single_task:
+    #             print(f"Task {task_id} is not {single_task}, skipping.")
+    #             continue
+
+    #         skills = ["open_drawer", "turn_on_lightbulb", "turn_on_led"]
+    #         if task_id not in skills:
+    #             print(f"Task {task_id} is not {single_task}, skipping.")
+    #             continue
+
+    #         count = 0
+    #         for i, traj in enumerate(traj_list):
+    #             if not isinstance(traj, np.ndarray) or traj.ndim != 2 or traj.shape[1] != 7:
+    #                 print(f"Skipping trajectory {i} in task {task_id} due to shape: {traj.shape if isinstance(traj, np.ndarray) else 'Invalid type'}")
+    #                 continue
+
+    #             x, y, z = traj[:, 0], traj[:, 1], traj[:, 2]
+    #             color = task_to_color[task_id]
+    #             label = f"Task {task_id}" if count == 0 else None  # Only label once per task
+
+    #             ax.plot(x, y, z, label=label, color=color, alpha=0.7)
+    #             count += 1
+
+    #             if count >= max_trajs_per_task:
+    #                 break
+
+    #     if single_task is not None and task_id != single_task:
+    #         ax.set_title(f"3D Trajectories for {single_task} Task")
+    #     else:
+    #         ax.set_title("3D Task Trajectories")
+    #     ax.set_xlabel("X")
+    #     ax.set_ylabel("Y")
+    #     ax.set_zlabel("Z")
+
+    #     ax.set_xlim([-0.4, 0.4])
+    #     ax.set_ylim([-0.5, 0.3])
+    #     ax.set_zlim([0.1, 0.9])
+
+    #     ax.legend()
+    #     plt.tight_layout()
+    #     plt.show()
         
     def query_phrase_index(self, phrase, phrases, encodings):
         """

@@ -1,3 +1,0 @@
-FullT -> Chunked, All Demos
-FullT15 -> Not Chunked, 15 demos
-FullT + Lang -> Chunked, All Demos

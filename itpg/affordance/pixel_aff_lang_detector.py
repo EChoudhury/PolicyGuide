@@ -238,6 +238,11 @@ class PixelAffLangDetector(LightningModule):
         heatmap = cv2.resize(heatmap, frame.shape[:2][::-1])
         heatmap = blend_imgs(frame.copy(), heatmap, alpha=0.8)
 
+        # Used just to visualize
+        # heatmap_frame = cv2.cvtColor(frame.copy(), cv2.COLOR_RGB2BGR)
+        # heatmap = blend_imgs(heatmap_frame, heatmap, alpha=0.8)
+        # pred_img = cv2.cvtColor(pred_img, cv2.COLOR_RGB2BGR)
+
         pixel = pred["pixel"]
         # print(pred["error"], pred["pixel"], (x, y))
 
@@ -266,5 +271,9 @@ class PixelAffLangDetector(LightningModule):
         else:
             text = "DepthPred: %.3f, Goal: %s" % (-1 * depth_est, inp["lang_goal"])
         out_img = add_img_text(out_img, text)
+        
+        # cv2.imshow("Affordance Prediction", out_img)
+        # cv2.waitKey(waitkey)
+        # cv2.destroyAllWindows()
 
         return out_img, {"pred_pixel": pred_img, "heatmap": heatmap}

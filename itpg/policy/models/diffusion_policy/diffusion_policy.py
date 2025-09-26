@@ -183,9 +183,9 @@ class DiffusionModel(nn.Module):
             prediction_type=config.prediction_type,
         )
 
-        self.rejection_sampling = False
-        self.visualize_trajectories = False
-        self.use_ITPS = True
+        self.rejection_sampling = True
+        self.visualize_trajectories = True
+        self.use_ITPS = False
 
         print("######### Rejection Sampling Info #########")
         print(f"Using ITPS: {self.use_ITPS}")
@@ -214,8 +214,8 @@ class DiffusionModel(nn.Module):
             if original_batch_size == 1:
                 global_cond = global_cond.repeat(batch_size, 1)
                 #randomize the values from global_cond[:, :7] and global_cond[:, 136:143] for each sample
-                global_cond[:, :8] = global_cond[:, :8] + torch.randn(batch_size, 8, dtype=dtype, device=device) * 0.1
-                global_cond[:, 136:144] = global_cond[:, 136:144] + torch.randn(batch_size, 8, dtype=dtype, device=device) * 0.1
+                # global_cond[:, :8] = global_cond[:, :8] + torch.randn(batch_size, 8, dtype=dtype, device=device) * 0.1
+                # global_cond[:, 136:144] = global_cond[:, 136:144] + torch.randn(batch_size, 8, dtype=dtype, device=device) * 0.1
 
             if guide_mode == "trajectory" or guide_mode == "path":
                 guide = guide.unsqueeze(0)
@@ -338,29 +338,63 @@ class DiffusionModel(nn.Module):
                 for i in range(all_traj.shape[0]):
                     traj = all_traj[i]
                     ax.plot(traj[:, 0], traj[:, 1], traj[:, 2], color='blue', alpha=0.15, label='Candidates' if i == 0 else "")
+                    # Add start and end points to indicate direction
+                    ax.scatter(traj[0, 0], traj[0, 1], traj[0, 2], color='cyan', marker='o', s=10, alpha=0.25, label='Start' if i == 0 else "")
+                    ax.scatter(traj[-1, 0], traj[-1, 1], traj[-1, 2], color='purple', marker='x', s=10, alpha=0.25, label='End' if i == 0 else "")
 
                 # Highlight the chosen trajectory
                 chosen_traj = all_traj[best_sample_idx]
                 ax.plot(chosen_traj[:, 0], chosen_traj[:, 1], chosen_traj[:, 2], color='green', linewidth=2.5, label='Chosen Trajectory')
+                ax.scatter(chosen_traj[0, 0], chosen_traj[0, 1], chosen_traj[0, 2], color='lime', marker='o', s=50)
+                ax.scatter(chosen_traj[-1, 0], chosen_traj[-1, 1], chosen_traj[-1, 2], color='darkgreen', marker='x', s=50)
 
                 if guide_mode == "trajectory" or guide_mode == "path":
                     axis_length = 0.01
                     for i in range(curr_guide.shape[1]):  # assuming all_actions contains Euler angles per timestep
+            # if self.visualize_trajectories:
+            #     all_traj = all_traj.clone().detach().cpu().numpy()
+            #     curr_guide = guide.clone().detach().cpu().numpy()
+            #     fig = plt.figure(figsize=(12, 10))
+            #     ax = fig.add_subplot(111, projection='3d')
+
+            #     # Plot all 64 generated trajectories
+            #     for i in range(all_traj.shape[0]):
+            #         traj = all_traj[i]
+            #         ax.plot(traj[:, 0], traj[:, 1], traj[:, 2], color='blue', alpha=0.15, label='Candidates' if i == 0 else "")
+
+            #     # Highlight the chosen trajectory
+            #     chosen_traj = all_traj[best_sample_idx]
+            #     ax.plot(chosen_traj[:, 0], chosen_traj[:, 1], chosen_traj[:, 2], color='green', linewidth=2.5, label='Chosen Trajectory')
+
+            #     if guide_mode == "trajectory" or guide_mode == "path":
+            #         axis_length = 0.01
+            #         for i in range(curr_guide.shape[1]):  # assuming all_actions contains Euler angles per timestep
                         r = R.from_euler('xyz', curr_guide[0, i, 3:6])
                         rot_matrix = r.as_matrix()
                         for j, color in zip(range(3), ['r', 'g', 'b']):
                             ax.quiver(curr_guide[0, i, 0], curr_guide[0, i, 1], curr_guide[0, i, 2],
-                                    rot_matrix[0, j], rot_matrix[1, j], rot_matrix[2, j],
+                                      rot_matrix[0, j], rot_matrix[1, j], rot_matrix[2, j],
                                     length=axis_length, color=color, alpha=0.25)
 
                     ax.plot(curr_guide[0, :, 0], curr_guide[0, :, 1], curr_guide[0, :, 2], color='red', linewidth=2.5, marker='x', markersize=5, label='Guide')
+                    ax.scatter(curr_guide[0, 0, 0], curr_guide[0, 0, 1], curr_guide[0, 0, 2], color='orange', marker='o', s=50)
+                    ax.scatter(curr_guide[0, -1, 0], curr_guide[0, -1, 1], curr_guide[0, -1, 2], color='darkred', marker='x', s=50)
                 else:
                     # Plot the guide trajectory
                     ax.plot(curr_guide[:, 0], curr_guide[:, 1], curr_guide[:, 2], color='red', linewidth=2.5, marker='x', markersize=5, label='Guide')
+                    ax.scatter(curr_guide[0, 0], curr_guide[0, 1], curr_guide[0, 2], color='orange', marker='o', s=50)
+                    ax.scatter(curr_guide[-1, 0], curr_guide[-1, 1], curr_guide[-1, 2], color='darkred', marker='x', s=50)
+                #                     rot_matrix[0, j], rot_matrix[1, j], rot_matrix[2, j],
+                #                     length=axis_length, color=color, alpha=0.25)
 
-                ax.set_xlim([-0.25, 0.25])
-                ax.set_ylim([-0.25, 0.25])
-                ax.set_zlim([0.3, 0.5])
+                #     ax.plot(curr_guide[0, :, 0], curr_guide[0, :, 1], curr_guide[0, :, 2], color='red', linewidth=2.5, marker='x', markersize=5, label='Guide')
+                # else:
+                #     # Plot the guide trajectory
+                #     ax.plot(curr_guide[:, 0], curr_guide[:, 1], curr_guide[:, 2], color='red', linewidth=2.5, marker='x', markersize=5, label='Guide')
+
+                # ax.set_xlim([-0.25, 0.25])
+                # ax.set_ylim([-0.25, 0.25])
+                # ax.set_zlim([0.3, 0.5])
 
                 ax.set_xlabel("X Position")
                 ax.set_ylabel("Y Position")
@@ -369,7 +403,7 @@ class DiffusionModel(nn.Module):
                 ax.legend()
                 
                 # Create a directory to save plots if it doesn't exist
-                save_dir = "/home/choudhue/PolicyGuide/evaluations/ablations/fullt_itps_point/trajectories"
+                save_dir = "/home/choudhue/PolicyGuide/viz/last_viz"
                 os.makedirs(save_dir, exist_ok=True)
                 
                 # Generate a unique filename with a timestamp

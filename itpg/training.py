@@ -38,7 +38,7 @@ def train(cfg: DictConfig) -> None:
     
     datamodule = hydra.utils.instantiate(cfg.datamodule)
 
-    chk = get_last_checkpoint(Path.cwd())
+    chk = get_last_checkpoint(Path("/home/choudhue/PolicyGuide/results/runs/2025-07-27/00-12-38")) #Path.cwd())
 
     # Load Model
     if chk is not None:
